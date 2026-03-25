@@ -1,0 +1,550 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String                   @id @default(cuid())
+  email                   String                   @unique
+  password                String
+  name                    String
+  role                    UserRole                 @default(USER)
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  address                 String?
+  addressComplement       String?
+  addressNumber           String?
+  cep                     String?
+  city                    String?
+  cnpj                    String?
+  companyName             String?
+  isActive                Boolean                  @default(true)
+  lastAccess              DateTime?
+  neighborhood            String?
+  planType                PlanType?
+  responsiblePerson       String?
+  state                   String?
+  maxTerminals            Int                      @default(1)
+  logoUrl                 String?
+  expiresAt               DateTime?
+  dailyEmailLimit         Int                      @default(100)
+  emailCredits            Int                      @default(0)
+  activityLogs            ActivityLog[]
+  campaigns               Campaign[]
+  contacts                Contact[]
+  contactLists            ContactList[]
+  emailCampaigns          EmailCampaign[]
+  emailCreditTransactions EmailCreditTransaction[]
+  employees               Employee[]
+  proposals               Proposal[]
+  proposalLibraryImages   ProposalLibraryImage[]
+  proposalTemplates       ProposalTemplate[]
+  sentimentKeywords       SentimentKeyword[]
+  terminals               Terminal[]
+
+  @@index([isActive])
+  @@index([lastAccess])
+}
+
+model Campaign {
+  id           String             @id @default(cuid())
+  title        String
+  description  String?
+  status       CampaignStatus     @default(ACTIVE)
+  uniqueLink   String             @unique @default(cuid())
+  userId       String
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  collectEmail Boolean            @default(false)
+  collectName  Boolean            @default(false)
+  collectPhone Boolean            @default(false)
+  lgpdText     String?
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions    Question[]
+  responses    Response[]
+  accesses     SurveyAccess[]
+  terminals    TerminalCampaign[]
+
+  @@index([userId])
+  @@index([uniqueLink])
+}
+
+model Question {
+  id                   String           @id @default(cuid())
+  text                 String
+  order                Int
+  campaignId           String
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  scaleMax             Int?
+  scaleMaxLabel        String?
+  scaleMin             Int?
+  scaleMinLabel        String?
+  type                 QuestionType
+  isRequired           Boolean          @default(true)
+  allowOptionalComment Boolean          @default(false)
+  answers              Answer[]
+  campaign             Campaign         @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  options              QuestionOption[]
+  employees            QuestionEmployee[]
+
+  @@index([campaignId])
+}
+
+model QuestionOption {
+  id         String   @id @default(cuid())
+  text       String
+  order      Int
+  questionId String
+  createdAt  DateTime @default(now())
+  color      String?
+  imageUrl   String?  // Para fotos de colaboradores no tipo EMPLOYEE_RATING
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model Employee {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  photoUrl  String?
+  isActive  Boolean  @default(true)
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions QuestionEmployee[]
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model QuestionEmployee {
+  id         String   @id @default(cuid())
+  questionId String
+  employeeId String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, employeeId])
+  @@index([questionId])
+  @@index([employeeId])
+}
+
+model Response {
+  id              String    @id @default(cuid())
+  campaignId      String
+  respondentEmail String?
+  createdAt       DateTime  @default(now())
+  terminalId      String?
+  respondentName  String?
+  respondentPhone String?
+  answers         Answer[]
+  campaign        Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  terminal        Terminal? @relation(fields: [terminalId], references: [id])
+
+  @@index([campaignId])
+  @@index([terminalId])
+  @@index([createdAt])
+}
+
+model Answer {
+  id                 String   @id @default(cuid())
+  responseId         String
+  questionId         String
+  rating             Int?
+  selectedOptions    String[]
+  comment            String?
+  selectedEmployeeId String?  // ID do colaborador selecionado (para perguntas EMPLOYEE_RATING)
+  createdAt          DateTime @default(now())
+  question           Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  response           Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+
+  @@index([responseId])
+  @@index([questionId])
+  @@index([selectedEmployeeId])
+}
+
+model Terminal {
+  id                String             @id @default(cuid())
+  name              String
+  email             String             @unique
+  password          String
+  isActive          Boolean            @default(true)
+  userId            String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  isDefaultPassword Boolean            @default(true)
+  uniqueLink        String?            @unique
+  redirectUrl       String?
+  emailCampaigns    EmailCampaign[]
+  responses         Response[]
+  accesses          SurveyAccess[]
+  campaigns         TerminalCampaign[]
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([email])
+  @@index([uniqueLink])
+}
+
+model TerminalCampaign {
+  id          String   @id @default(cuid())
+  terminalId  String
+  campaignId  String
+  order       Int      @default(0)
+  icon        String   @default("faChartBar")
+  color       String   @default("#3b82f6")
+  customTitle String?
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  terminal    Terminal @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([terminalId, campaignId])
+  @@index([terminalId])
+  @@index([campaignId])
+  @@index([order])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String
+  action      String
+  entityType  String
+  entityId    String?
+  entityName  String?
+  description String
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+  @@index([entityType])
+}
+
+model SurveyAccess {
+  id         String       @id @default(cuid())
+  campaignId String
+  terminalId String?
+  source     AccessSource @default(WEBVIEW)
+  completed  Boolean      @default(false)
+  userAgent  String?
+  createdAt  DateTime     @default(now())
+  campaign   Campaign     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  terminal   Terminal?    @relation(fields: [terminalId], references: [id])
+
+  @@index([campaignId])
+  @@index([terminalId])
+  @@index([createdAt])
+  @@index([source])
+}
+
+model SentimentKeyword {
+  id        String        @id @default(cuid())
+  word      String
+  type      SentimentType
+  userId    String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, word, type])
+  @@index([userId])
+  @@index([type])
+}
+
+model ProposalTemplate {
+  id                  String     @id @default(cuid())
+  name                String
+  description         String?
+  generalDescription  String?
+  implementationReqs  String?
+  technicalSupport    String?
+  warranty            String?
+  systemFeatures      String?
+  paymentTerms        String?
+  finalConsiderations String?
+  defaultItems        Json?
+  isActive            Boolean    @default(true)
+  userId              String
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  proposals           Proposal[]
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model Proposal {
+  id                  String            @id @default(cuid())
+  proposalNumber      String            @unique
+  clientName          String
+  clientContactPerson String?
+  clientEmail         String?
+  clientPhone         String?
+  clientCep           String?
+  clientAddress       String?
+  proposalDate        DateTime          @default(now())
+  validUntil          DateTime?
+  status              ProposalStatus    @default(DRAFT)
+  templateId          String?
+  greeting            String?
+  generalDescription  String?
+  implementationReqs  String?
+  technicalSupport    String?
+  warranty            String?
+  systemFeatures      String?
+  paymentTerms        String?
+  finalConsiderations String?
+  planType            String?
+  planValue           Decimal?          @db.Decimal(10, 2)
+  planDescription     String?
+  shippingValue       Decimal?          @db.Decimal(10, 2)
+  totalValue          Decimal?          @db.Decimal(10, 2)
+  signatureName       String?
+  signaturePhone      String?
+  userId              String
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  template            ProposalTemplate? @relation(fields: [templateId], references: [id])
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  images              ProposalImage[]
+  items               ProposalItem[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([proposalNumber])
+  @@index([clientName])
+}
+
+model ProposalItem {
+  id            String   @id @default(cuid())
+  proposalId    String
+  name          String
+  description   String?
+  quantity      Int      @default(1)
+  unitPrice     Decimal  @db.Decimal(10, 2)
+  subtotal      Decimal  @db.Decimal(10, 2)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  shippingValue Decimal? @db.Decimal(10, 2)
+  proposal      Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([proposalId])
+}
+
+model ProposalImage {
+  id         String   @id @default(cuid())
+  proposalId String
+  imageUrl   String
+  caption    String?
+  imageType  String?
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([proposalId])
+}
+
+model ProposalLibraryImage {
+  id               String   @id @default(cuid())
+  userId           String
+  imageUrl         String
+  cloudStoragePath String?
+  caption          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model ContactList {
+  id             String          @id @default(cuid())
+  userId         String
+  name           String
+  description    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  contacts       Contact[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailCampaigns EmailCampaign[]
+
+  @@index([userId])
+}
+
+model Contact {
+  id         String       @id @default(cuid())
+  userId     String
+  listId     String?
+  email      String
+  name       String?
+  phone      String?
+  company    String?
+  tags       String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  list       ContactList? @relation(fields: [listId], references: [id])
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailSends EmailSend[]
+
+  @@unique([userId, email])
+  @@index([userId])
+  @@index([listId])
+}
+
+model EmailCampaign {
+  id              String              @id @default(cuid())
+  userId          String
+  terminalId      String
+  contactListId   String?
+  name            String
+  subject         String
+  previewText     String?
+  bodyText        String
+  status          EmailCampaignStatus @default(DRAFT)
+  scheduledAt     DateTime?
+  sentAt          DateTime?
+  totalEmails     Int                 @default(0)
+  sentEmails      Int                 @default(0)
+  openedEmails    Int                 @default(0)
+  clickedEmails   Int                 @default(0)
+  respondedEmails Int                 @default(0)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  contactList     ContactList?        @relation(fields: [contactListId], references: [id])
+  terminal        Terminal            @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailSends      EmailSend[]
+
+  @@index([userId])
+  @@index([terminalId])
+  @@index([status])
+}
+
+model EmailSend {
+  id              String          @id @default(cuid())
+  emailCampaignId String
+  contactId       String
+  status          EmailSendStatus @default(PENDING)
+  sentAt          DateTime?
+  openedAt        DateTime?
+  clickedAt       DateTime?
+  respondedAt     DateTime?
+  errorMessage    String?
+  trackingId      String          @unique @default(cuid())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  contact         Contact         @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  emailCampaign   EmailCampaign   @relation(fields: [emailCampaignId], references: [id], onDelete: Cascade)
+
+  @@index([emailCampaignId])
+  @@index([contactId])
+  @@index([status])
+}
+
+model EmailPackage {
+  id          String   @id @default(cuid())
+  name        String
+  credits     Int
+  price       Decimal  @db.Decimal(10, 2)
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model EmailCreditTransaction {
+  id          String   @id @default(cuid())
+  userId      String
+  amount      Int
+  balance     Int
+  type        String
+  description String?
+  reference   String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  SCALE
+  SMILE
+  NPS
+  SIMPLE_SMILE
+  TEXT_INPUT
+  EMPLOYEE_RATING
+}
+
+enum CampaignStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum PlanType {
+  MENSAL
+  ANUAL
+  LIVRE
+  TESTE_7_DIAS
+}
+
+enum SentimentType {
+  POSITIVE
+  NEGATIVE
+}
+
+enum AccessSource {
+  WEBVIEW
+  TERMINAL
+  QR_CODE
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum EmailCampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  SENT
+  CANCELLED
+}
+
+enum EmailSendStatus {
+  PENDING
+  SENT
+  OPENED
+  CLICKED
+  RESPONDED
+  BOUNCED
+  FAILED
+}
