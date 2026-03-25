@@ -1,6 +1,4 @@
 #!/bin/bash
-set -a
-source .env.production
-set +a
+export $(cat .env.production | grep -v '^#' | xargs)
 npx prisma generate
 npm run start
