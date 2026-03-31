@@ -29,106 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { fileName, contentType } = body;
-
-    if (!fileName || !contentType) {
-      return NextResponse.json(
-        { error: 'Nome do arquivo e tipo de conteúdo são obrigatórios' },
-        { status: 400 }
-      );
-    }
-
-    // Validar tipo de arquivo (apenas imagens)
-    if (!contentType.startsWith('image/')) {
-      return NextResponse.json(
-        { error: 'Apenas arquivos de imagem são permitidos' },
-        { status: 400 }
-      );
-    }
-
-    // Gerar nome único
-    const timestamp = Date.now();
-    const random = Math.random().toString(36).substring(7);
-    const extension = fileName.split('.').pop();
-    const cleanFileName = `${timestamp}-${random}.${extension}`;
-
-    // Verificar configuração do Supabase
-    if (hasSupabaseConfig()) {
-      // Retornar modo Supabase para o frontend usar API /api/upload
-      return NextResponse.json({
-        uploadUrl: null,
-        cloud_storage_path: `logos/${user.id}/${cleanFileName}`,
-        supabaseMode: true,
-        localMode: false,
-      });
-    }
-
-    // Verificar se tem AWS configurado
-    const hasAwsConfig = process.env.AWS_BUCKET_NAME && 
-                         process.env.AWS_ACCESS_KEY_ID && 
-                         process.env.AWS_SECRET_ACCESS_KEY;
-
-    // Se não tem AWS, salvar localmente
-    if (!hasAwsConfig) {
-      try {
-        const baseDir = process.env.UPLOAD_DIR || '/app/uploads';
-        const logoDir = path.join(baseDir, 'logos', user.id);
-        if (!existsSync(logoDir)) {
-          await mkdir(logoDir, { recursive: true });
-        }
-
-        return NextResponse.json({
-          uploadUrl: null,
-          cloud_storage_path: `uploads/logos/${user.id}/${cleanFileName}`,
-          localMode: true,
-        });
-      } catch (localError) {
-        console.error('Local logo setup failed:', localError);
-        throw localError;
-      }
-    }
-
-    // Tem AWS configurado: usar S3
-    const { uploadUrl, cloud_storage_path } = await generatePresignedUploadUrl(
-      fileName,
-      contentType,
-      true
-    );
-
-    return NextResponse.json({
-      uploadUrl,
-      cloud_storage_path,
-      localMode: false,
-    });
-  } catch (error) {
-    console.error('Error generating upload URL:', error);
-    return NextResponse.json(
-      { error: 'Erro ao gerar URL de upload' },
-      { status: 500 }
-    );
-  }
-}
-
-// PUT - Atualizar logoUrl no perfil do usuário
-export async function PUT(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
-    }
-
-    const body = await request.json();
-    console.log('Logo PUT body:', JSON.stringify(body));
-    const { cloud_storage_path, logoUrl: directUrl, isBase64 } = body;
+    const { cloud_storage_path, directUrl, isBase64 } = body;
 
     // Deletar logo antiga se existir
     if (user.logoUrl) {
@@ -161,8 +62,6 @@ export async function PUT(request: NextRequest) {
     const hasAwsConfig = process.env.AWS_BUCKET_NAME && 
                          process.env.AWS_ACCESS_KEY_ID && 
                          process.env.AWS_SECRET_ACCESS_KEY;
-
-    console.log('Logo update - hasSupabase:', hasSupabase, 'hasAwsConfig:', hasAwsConfig, 'directUrl:', !!directUrl, 'cloud_storage_path:', !!cloud_storage_path);
 
     // Se tem directUrl (upload via API /api/upload) - funciona para todos os modos
     if (directUrl) {
