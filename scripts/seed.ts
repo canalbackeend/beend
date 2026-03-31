@@ -1,7 +1,13 @@
 import { PrismaClient, UserRole, CampaignStatus, QuestionType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: process.env.DATABASE_URL || process.env.POSTGRES_URL,
+    },
+  },
+});
 
 async function main() {
   console.log('🌱 Starting seed...');
