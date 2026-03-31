@@ -120,11 +120,15 @@ export async function PUT(request: NextRequest) {
     // Deletar logo antiga se existir
     if (user.logoUrl) {
       try {
-        // Se for URL local
-        if (user.logoUrl.includes('/uploads/logos/')) {
-          // Não precisa deletar arquivo local em desenvolvimento
-        } else {
-          // É URL do S3 - deletar
+        // Verificar se tem AWS configurado
+        const hasAwsConfig = process.env.AWS_BUCKET_NAME && 
+                             process.env.AWS_ACCESS_KEY_ID && 
+                             process.env.AWS_SECRET_ACCESS_KEY;
+        
+        if (!hasAwsConfig && user.logoUrl.includes('/api/uploads')) {
+          // URL local - não precisa deletar arquivo
+        } else if (user.logoUrl.includes('.amazonaws.com/')) {
+          // URL S3 - deletar
           const oldPath = user.logoUrl.split('.amazonaws.com/')[1];
           if (oldPath) {
             await deleteFile(oldPath);
@@ -132,17 +136,23 @@ export async function PUT(request: NextRequest) {
         }
       } catch (error) {
         console.error('Error deleting old logo:', error);
-        // Continuar mesmo se falhar ao deletar
       }
     }
 
     let logoUrl: string;
 
-    // Em desenvolvimento: usar URL local
-    if (process.env.NODE_ENV === 'development' && directUrl) {
-      logoUrl = directUrl;
+    // Verificar se tem AWS configurado
+    const hasAwsConfig = process.env.AWS_BUCKET_NAME && 
+                         process.env.AWS_ACCESS_KEY_ID && 
+                         process.env.AWS_SECRET_ACCESS_KEY;
+
+    // Se não tem AWS, usar URL local via API
+    if (!hasAwsConfig && directUrl) {
+      // Converter caminho para URL da API
+      const fileName = directUrl.split('/').pop();
+      logoUrl = `/api/uploads?path=logos/${user.id}/${fileName}`;
     }
-    // Em produção: usar S3
+    // Tem AWS: usar S3
     else if (cloud_storage_path) {
       logoUrl = await getFileUrl(cloud_storage_path, true);
     } else {
