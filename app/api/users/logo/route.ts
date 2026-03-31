@@ -161,8 +161,10 @@ export async function PUT(request: NextRequest) {
                          process.env.AWS_ACCESS_KEY_ID && 
                          process.env.AWS_SECRET_ACCESS_KEY;
 
-    // Se tem Supabase e tem directUrl (upload via API /api/upload)
-    if (hasSupabase && directUrl) {
+    console.log('Logo update - hasSupabase:', hasSupabase, 'hasAwsConfig:', hasAwsConfig, 'directUrl:', !!directUrl, 'cloud_storage_path:', !!cloud_storage_path);
+
+    // Se tem directUrl (upload via API /api/upload) - funciona para todos os modos
+    if (directUrl) {
       logoUrl = directUrl;
     }
     // Se tem Supabase e cloud_storage_path, gerar URL pública do Supabase
@@ -170,12 +172,6 @@ export async function PUT(request: NextRequest) {
       const { data } = supabase.storage.from('uploads').getPublicUrl(cloud_storage_path);
       console.log('Supabase public URL:', data.publicUrl);
       logoUrl = data.publicUrl;
-    }
-    // Se não tem AWS, usar URL local via API
-    else if (!hasAwsConfig && directUrl) {
-      // Converter caminho para URL da API
-      const fileName = directUrl.split('/').pop();
-      logoUrl = `/api/uploads?path=logos/${user.id}/${fileName}`;
     }
     // Tem AWS: usar S3
     else if (hasAwsConfig && cloud_storage_path) {
