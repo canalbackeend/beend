@@ -5,9 +5,6 @@ import prisma from '@/lib/db';
 import { generatePresignedUploadUrl, deleteFile, getFileUrl, uploadToS3 } from '@/lib/s3';
 import { supabase, uploadToSupabase, hasSupabaseConfig } from '@/lib/supabase';
 import { logActivity, ActivityAction, EntityType } from '@/lib/activity-log';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,13 +26,98 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const { fileName, contentType } = body;
+
+    if (!fileName || !contentType) {
+      return NextResponse.json(
+        { error: 'Nome do arquivo e tipo de conteúdo são obrigatórios' },
+        { status: 400 }
+      );
+    }
+
+    // Validar tipo de arquivo (apenas imagens)
+    if (!contentType.startsWith('image/')) {
+      return NextResponse.json(
+        { error: 'Apenas arquivos de imagem são permitidos' },
+        { status: 400 }
+      );
+    }
+
+    // Gerar nome único
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(7);
+    const extension = fileName.split('.').pop();
+    const cleanFileName = `${timestamp}-${random}.${extension}`;
+
+    // Verificar configuração do Supabase
+    if (hasSupabaseConfig()) {
+      return NextResponse.json({
+        uploadUrl: null,
+        cloud_storage_path: `logos/${user.id}/${cleanFileName}`,
+        supabaseMode: true,
+        localMode: false,
+      });
+    }
+
+    // Verificar se tem AWS configurado
+    const hasAwsConfig = process.env.AWS_BUCKET_NAME && 
+                         process.env.AWS_ACCESS_KEY_ID && 
+                         process.env.AWS_SECRET_ACCESS_KEY;
+
+    // Se não tem AWS, salvar localmente
+    if (!hasAwsConfig) {
+      return NextResponse.json({
+        uploadUrl: null,
+        cloud_storage_path: `uploads/logos/${user.id}/${cleanFileName}`,
+        localMode: true,
+      });
+    }
+
+    // Tem AWS configurado: usar S3
+    const { uploadUrl, cloud_storage_path } = await generatePresignedUploadUrl(
+      fileName,
+      contentType,
+      true
+    );
+
+    return NextResponse.json({
+      uploadUrl,
+      cloud_storage_path,
+      localMode: false,
+    });
+  } catch (error) {
+    console.error('Error generating upload URL:', error);
+    return NextResponse.json(
+      { error: 'Erro ao gerar URL de upload' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT - Atualizar logoUrl no perfil do usuário
+export async function PUT(request: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
+    }
+
+    const body = await request.json();
     const { cloud_storage_path, directUrl, isBase64 } = body;
-    console.log('Logo PUT received:', { directUrl: !!directUrl, cloud_storage_path: !!cloud_storage_path });
+    console.log('Logo PUT - body keys:', Object.keys(body), 'directUrl:', directUrl ? 'yes' : 'no');
 
     // Deletar logo antiga se existir
     if (user.logoUrl) {
       try {
-        // Verificar se tem AWS configurado
         const hasAwsConfig = process.env.AWS_BUCKET_NAME && 
                              process.env.AWS_ACCESS_KEY_ID && 
                              process.env.AWS_SECRET_ACCESS_KEY;
@@ -43,7 +125,6 @@ export async function POST(request: NextRequest) {
         if (!hasAwsConfig && user.logoUrl.includes('/api/uploads')) {
           // URL local - não precisa deletar arquivo
         } else if (user.logoUrl.includes('.amazonaws.com/')) {
-          // URL S3 - deletar
           const oldPath = user.logoUrl.split('.amazonaws.com/')[1];
           if (oldPath) {
             await deleteFile(oldPath);
