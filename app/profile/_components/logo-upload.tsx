@@ -159,12 +159,8 @@ export function LogoUpload({ currentLogoUrl, onLogoUpdate }: LogoUploadProps) {
         body: JSON.stringify({ directUrl: logoUrl }),
       });
 
-      console.log('Logo PUT response:', updateResponse.status, updateResponse.statusText);
-      
       if (!updateResponse.ok) {
-        const errorText = await updateResponse.text();
-        console.error('Logo PUT error response:', errorText);
-        throw new Error(`Erro ao atualizar logo: ${updateResponse.status}`);
+        throw new Error('Erro ao atualizar logo');
       }
 
       const updateData = await updateResponse.json();

@@ -113,7 +113,6 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const { cloud_storage_path, directUrl, isBase64 } = body;
-    console.log('Logo PUT - body keys:', Object.keys(body), 'directUrl:', directUrl ? 'yes' : 'no');
 
     // Deletar logo antiga se existir
     if (user.logoUrl) {
