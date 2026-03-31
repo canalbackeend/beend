@@ -149,11 +149,29 @@ export function LogoUpload({ currentLogoUrl, onLogoUpdate }: LogoUploadProps) {
         throw new Error('Erro ao gerar URL de upload');
       }
 
-      const { uploadUrl, cloud_storage_path, localMode } = await presignedResponse.json();
+      const { uploadUrl, cloud_storage_path, localMode, supabaseMode } = await presignedResponse.json();
 
       let logoUrl: string;
 
-      if (localMode || !uploadUrl) {
+      // Se tem Supabase configurado (supabaseMode ou localMode + URL do Supabase)
+      if (supabaseMode || (localMode && cloud_storage_path?.includes('logos/'))) {
+        // Fazer upload via API /api/upload (que agora suporta Supabase)
+        const formData = new FormData();
+        formData.append('file', croppedFile);
+        formData.append('type', 'logo');
+
+        const uploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Erro ao fazer upload');
+        }
+
+        const uploadData = await uploadResponse.json();
+        logoUrl = uploadData.url;
+      } else if (localMode || !uploadUrl) {
         // Modo desenvolvimento: fazer upload direto para o servidor local
         const formData = new FormData();
         formData.append('file', croppedFile);
