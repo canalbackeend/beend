@@ -54,17 +54,6 @@ export async function POST(request: NextRequest) {
 
     // Verificar configuração do Supabase
     if (hasSupabaseConfig()) {
-      // Retornar URL de upload direto para o frontend usar
-      return NextResponse.json({
-        uploadUrl: null,
-        cloud_storage_path: `logos/${user.id}/${cleanFileName}`,
-        supabaseMode: true,
-        localMode: false,
-      });
-    }
-
-    // Verificar configuração do Supabase
-    if (hasSupabaseConfig()) {
       // Retornar modo Supabase para o frontend usar API /api/upload
       return NextResponse.json({
         uploadUrl: null,
@@ -172,16 +161,15 @@ export async function PUT(request: NextRequest) {
                          process.env.AWS_ACCESS_KEY_ID && 
                          process.env.AWS_SECRET_ACCESS_KEY;
 
+    // Se tem Supabase e tem directUrl (upload via API /api/upload)
+    if (hasSupabase && directUrl) {
+      logoUrl = directUrl;
+    }
     // Se tem Supabase e cloud_storage_path, gerar URL pública do Supabase
-    if (hasSupabase && supabase && cloud_storage_path) {
+    else if (hasSupabase && supabase && cloud_storage_path) {
       const { data } = supabase.storage.from('uploads').getPublicUrl(cloud_storage_path);
       console.log('Supabase public URL:', data.publicUrl);
       logoUrl = data.publicUrl;
-    }
-    // Se tem Supabase mas só tem directUrl (do upload local via API)
-    else if (hasSupabase && directUrl) {
-      // directUrl já é a URL pública retornada pelo /api/upload
-      logoUrl = directUrl;
     }
     // Se não tem AWS, usar URL local via API
     else if (!hasAwsConfig && directUrl) {

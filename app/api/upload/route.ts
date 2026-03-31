@@ -50,12 +50,16 @@ export async function POST(request: NextRequest) {
 
     // Verificar configuração do Supabase
     if (hasSupabaseConfig()) {
+      console.log('Uploading to Supabase, type:', uploadType);
       try {
         const key = `${uploadType}/${session.user.id}/${fileName}`;
         const url = await uploadToSupabase(buffer, key, file.type, 'uploads');
+        console.log('Supabase upload success, URL:', url);
         return NextResponse.json({ url });
       } catch (supabaseError) {
         console.error('Supabase upload failed:', supabaseError);
+        const errorMessage = supabaseError instanceof Error ? supabaseError.message : 'Unknown error';
+        return NextResponse.json({ error: `Supabase upload failed: ${errorMessage}` }, { status: 500 });
       }
     }
 

@@ -135,104 +135,40 @@ export function LogoUpload({ currentLogoUrl, onLogoUpdate }: LogoUploadProps) {
         type: 'image/png',
       });
 
-      // 1. Gerar URL pré-assinada
-      const presignedResponse = await fetch('/api/users/logo', {
+      // Upload direto para /api/upload (igual ao campaigns/new)
+      const formData = new FormData();
+      formData.append('file', croppedFile);
+      formData.append('type', 'logo');
+
+      const uploadResponse = await fetch('/api/upload', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileName: croppedFile.name,
-          contentType: croppedFile.type,
-        }),
+        body: formData,
       });
 
-      if (!presignedResponse.ok) {
-        throw new Error('Erro ao gerar URL de upload');
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        throw new Error(errorData.error || 'Erro ao fazer upload');
       }
 
-      const { uploadUrl, cloud_storage_path, localMode, supabaseMode } = await presignedResponse.json();
+      const uploadData = await uploadResponse.json();
+      const logoUrl = uploadData.url;
 
-      let logoUrl: string;
+      // Salvar no banco
+      const updateResponse = await fetch('/api/users/logo', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ directUrl: logoUrl }),
+      });
 
-      // Se tem Supabase configurado
-      if (supabaseMode) {
-        // Fazer upload via API /api/upload (que agora suporta Supabase)
-        const formData = new FormData();
-        formData.append('file', croppedFile);
-        formData.append('type', 'logo');
-
-        const uploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error('Erro ao fazer upload');
-        }
-
-        const uploadData = await uploadResponse.json();
-        logoUrl = uploadData.url;
-
-        // Salvar no banco
-        const updateResponse = await fetch('/api/users/logo', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ directUrl: logoUrl }),
-        });
-
-        if (!updateResponse.ok) {
-          throw new Error('Erro ao atualizar logo');
-        }
-
-        const updateData = await updateResponse.json();
-        logoUrl = updateData.logoUrl;
-      } else if (localMode || !uploadUrl) {
-        // Modo desenvolvimento: fazer upload direto para o servidor local
-        const formData = new FormData();
-        formData.append('file', croppedFile);
-        formData.append('type', 'logo');
-
-        const localUploadResponse = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (!localUploadResponse.ok) {
-          throw new Error('Erro ao fazer upload local');
-        }
-
-        const localData = await localUploadResponse.json();
-        logoUrl = localData.url;
-      } else {
-        // Modo produção: Upload direto para S3
-        const uploadResponse = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': croppedFile.type,
-          },
-          body: croppedFile,
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error('Erro ao fazer upload para S3');
-        }
-
-        // 3. Atualizar banco de dados
-        const updateResponse = await fetch('/api/users/logo', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cloud_storage_path }),
-        });
-
-        if (!updateResponse.ok) {
-          throw new Error('Erro ao atualizar logo');
-        }
-
-        const updateData = await updateResponse.json();
-        logoUrl = updateData.logoUrl;
+      if (!updateResponse.ok) {
+        const errorData = await updateResponse.json();
+        throw new Error(errorData.error || 'Erro ao atualizar logo');
       }
 
-      setPreviewUrl(logoUrl);
-      onLogoUpdate(logoUrl);
+      const updateData = await updateResponse.json();
+
+      setPreviewUrl(updateData.logoUrl);
+      onLogoUpdate(updateData.logoUrl);
       toast.success('Logo atualizada com sucesso!');
       
       // Fechar modal
@@ -241,7 +177,8 @@ export function LogoUpload({ currentLogoUrl, onLogoUpdate }: LogoUploadProps) {
       setSelectedFile(null);
     } catch (error) {
       console.error('Error uploading logo:', error);
-      toast.error('Erro ao fazer upload da logo');
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast.error(`Erro ao fazer upload da logo: ${errorMessage}`);
     } finally {
       setUploading(false);
     }

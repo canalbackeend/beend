@@ -110,11 +110,11 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
             scaleMinLabel: q.scaleMinLabel,
             scaleMaxLabel: q.scaleMaxLabel,
             options: q.options && q.options.length > 0 ? {
-              create: q.options.map((opt: any) => ({
+              create: q.options.map((opt: any, idx: number) => ({
                 text: opt.text,
                 color: opt.color || '#3b82f6',
                 imageUrl: opt.imageUrl,
-                order: opt.order,
+                order: opt.order ?? idx + 1,
               })),
             } : undefined,
           },
