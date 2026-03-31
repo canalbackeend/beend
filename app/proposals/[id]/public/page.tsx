@@ -116,7 +116,7 @@ export default function ProposalPublicPage() {
       {/* Footer */}
       <div className="bg-gray-800 text-white py-4 text-center text-sm">
         <p>Proposta gerada por <strong>Beend</strong> - Sistema de Pesquisa de Satisfação</p>
-        <p className="text-gray-400 mt-1">www.backeend.com.br</p>
+        <p className="text-gray-400 mt-1">totem.beend.tech</p>
       </div>
     </div>
   );

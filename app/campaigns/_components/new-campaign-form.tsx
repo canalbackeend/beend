@@ -60,6 +60,7 @@ interface SortableQuestionItemProps {
   addOption: (questionIndex: number) => void;
   removeOption: (questionIndex: number, optionIndex: number) => void;
   updateOption: (questionIndex: number, optionIndex: number, text: string) => void;
+  setQuestions: React.Dispatch<React.SetStateAction<Question[]>>;
   handleImageUpload: (qIndex: number, oIndex: number, file: File) => void;
   uploadingImage: {qIndex: number, oIndex: number} | null;
   smileIcons: Array<{icon: any, label: string, color: string}>;
@@ -74,6 +75,7 @@ function SortableQuestionItem({
   addOption,
   removeOption,
   updateOption,
+  setQuestions,
   handleImageUpload,
   uploadingImage,
   smileIcons,
@@ -333,13 +335,15 @@ function SortableQuestionItem({
                           type="color"
                           value={option.color || '#3b82f6'}
                           onChange={(e) => {
+                            updateOption(qIndex, oIndex, option.text);
                             const updated = [...questions];
                             if (updated[qIndex].options && updated[qIndex].options[oIndex]) {
                               updated[qIndex].options[oIndex].color = e.target.value;
+                              setQuestions(updated);
                             }
                           }}
                           className="w-10 h-10 rounded cursor-pointer border-2 border-muted"
-                          title="Escolher cor"
+                          title={`Cor selecionada: ${option.color || '#3b82f6'}`}
                         />
                         {question.options.length > 1 && (
                           <Button type="button" variant="ghost" size="icon" onClick={() => removeOption(qIndex, oIndex)}>
@@ -838,6 +842,7 @@ export function NewCampaignForm() {
                         addOption={addOption}
                         removeOption={removeOption}
                         updateOption={updateOption}
+                        setQuestions={setQuestions}
                         handleImageUpload={handleImageUpload}
                         uploadingImage={uploadingImage}
                         smileIcons={smileIcons}

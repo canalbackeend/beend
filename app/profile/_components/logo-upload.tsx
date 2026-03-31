@@ -149,33 +149,56 @@ export function LogoUpload({ currentLogoUrl, onLogoUpdate }: LogoUploadProps) {
         throw new Error('Erro ao gerar URL de upload');
       }
 
-      const { uploadUrl, cloud_storage_path } = await presignedResponse.json();
+      const { uploadUrl, cloud_storage_path, localMode } = await presignedResponse.json();
 
-      // 2. Upload direto para S3
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': croppedFile.type,
-        },
-        body: croppedFile,
-      });
+      let logoUrl: string;
 
-      if (!uploadResponse.ok) {
-        throw new Error('Erro ao fazer upload');
+      if (localMode || !uploadUrl) {
+        // Modo desenvolvimento: fazer upload direto para o servidor local
+        const formData = new FormData();
+        formData.append('file', croppedFile);
+        formData.append('type', 'logo');
+
+        const localUploadResponse = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!localUploadResponse.ok) {
+          throw new Error('Erro ao fazer upload local');
+        }
+
+        const localData = await localUploadResponse.json();
+        logoUrl = localData.url;
+      } else {
+        // Modo produção: Upload direto para S3
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': croppedFile.type,
+          },
+          body: croppedFile,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Erro ao fazer upload para S3');
+        }
+
+        // 3. Atualizar banco de dados
+        const updateResponse = await fetch('/api/users/logo', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cloud_storage_path }),
+        });
+
+        if (!updateResponse.ok) {
+          throw new Error('Erro ao atualizar logo');
+        }
+
+        const updateData = await updateResponse.json();
+        logoUrl = updateData.logoUrl;
       }
 
-      // 3. Atualizar banco de dados
-      const updateResponse = await fetch('/api/users/logo', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cloud_storage_path }),
-      });
-
-      if (!updateResponse.ok) {
-        throw new Error('Erro ao atualizar logo');
-      }
-
-      const { logoUrl } = await updateResponse.json();
       setPreviewUrl(logoUrl);
       onLogoUpdate(logoUrl);
       toast.success('Logo atualizada com sucesso!');

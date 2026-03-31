@@ -99,7 +99,7 @@ export default function LandingPage() {
     },
     {
       question: 'Como funciona o suporte técnico?',
-      answer: 'Oferecemos suporte via WhatsApp no (61) 9 9595-7461 e email suporte@backeend.com.br. Nossa equipe está pronta para ajudar com dúvidas técnicas, configurações e treinamentos.'
+      answer: 'Oferecemos suporte via WhatsApp no (61) 9 9595-7461 e email canalbackeend@gmail.com. Nossa equipe está pronta para ajudar com dúvidas técnicas, configurações e treinamentos.'
     },
   ];
 
@@ -137,7 +137,7 @@ export default function LandingPage() {
                   Login
                 </Button>
               </Link>
-              <Link href="https://totem.beend.app" target="_blank">
+              <Link href="https://totem.beend.tech" target="_blank">
                 <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                   Acessar Sistema
                 </Button>
@@ -172,7 +172,7 @@ export default function LandingPage() {
                   Login
                 </Button>
               </Link>
-              <Link href="https://totem.beend.app" target="_blank" onClick={() => setMobileMenuOpen(false)}>
+              <Link href="https://totem.beend.tech" target="_blank" onClick={() => setMobileMenuOpen(false)}>
                 <Button size="sm" className="w-full bg-gradient-to-r from-blue-600 to-purple-600">
                   Acessar Sistema
                 </Button>
@@ -213,7 +213,7 @@ export default function LandingPage() {
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="https://totem.beend.app" target="_blank">
+              <Link href="https://totem.beend.tech" target="_blank">
                 <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg px-8">
                   Começar Agora
                   <ChevronRight className="ml-2 h-5 w-5" />
@@ -452,7 +452,7 @@ export default function LandingPage() {
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
             Comece agora mesmo a coletar feedback inteligente com a melhor plataforma do mercado
           </p>
-          <Link href="https://totem.beend.app" target="_blank">
+          <Link href="https://totem.beend.tech" target="_blank">
             <Button size="lg" variant="secondary" className="text-lg px-8">
               Acessar Sistema
               <ChevronRight className="ml-2 h-5 w-5" />
@@ -511,7 +511,7 @@ export default function LandingPage() {
               <h3 className="font-semibold text-white mb-4">Contato</h3>
               <ul className="space-y-2 text-sm">
                 <li>WhatsApp: (61) 9 9595-7461</li>
-                <li>Email: suporte@backeend.com.br</li>
+                <li>Email: canalbackeend@gmail.com</li>
                 <li>Brasília/DF - Brasil</li>
               </ul>
             </div>

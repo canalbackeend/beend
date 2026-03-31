@@ -587,7 +587,7 @@ Validade da proposta: 10 dias.`);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-5xl mx-auto">
+    <form onSubmit={handleSubmit} className="space-y-6 mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">

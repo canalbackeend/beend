@@ -11,6 +11,10 @@ export async function generatePresignedUploadUrl(
   contentType: string,
   isPublic = true
 ) {
+  if (!bucketName) {
+    throw new Error('AWS_BUCKET_NAME não configurado');
+  }
+
   // Determinar o prefixo baseado no tipo de arquivo
   const isProposalImage = fileName.includes('proposal-images/');
   const cleanFileName = isProposalImage ? fileName : `logos/${Date.now()}-${fileName}`;

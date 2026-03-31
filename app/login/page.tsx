@@ -114,8 +114,8 @@ export default function LoginPage() {
               </p>
               <p>
                 <strong>Suporte Técnico:</strong>{' '}
-                <a href="mailto:suporte@backeend.com.br" className="text-blue-600 dark:text-blue-400 hover:underline">
-                  suporte@backeend.com.br
+                <a href="mailto:canalbackeend@gmail.com" className="text-blue-600 dark:text-blue-400 hover:underline">
+                  canalbackeend@gmail.com
                 </a>
               </p>
               <p>

@@ -80,7 +80,7 @@ export default function TerminalLoginPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="terminal@beend.app"
+                placeholder="terminal@totem.beend.tech"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

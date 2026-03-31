@@ -389,7 +389,7 @@ export default function HelpPage() {
                           O sistema gera automaticamente:
                         </p>
                         <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
-                          <li><strong>E-mail:</strong> term[número]@beend.app</li>
+                          <li><strong>E-mail:</strong> term[número]@totem.beend.tech</li>
                           <li><strong>Senha padrão:</strong> term123</li>
                           <li>Você pode alterar a senha a qualquer momento</li>
                         </ul>
@@ -406,7 +406,7 @@ export default function HelpPage() {
                           Para instalar em um tablet Android:
                         </p>
                         <ol className="text-sm text-muted-foreground space-y-1 ml-4 list-decimal">
-                          <li>Baixe o APK do link: <code className="bg-muted px-1 py-0.5 rounded">https://www.backeend.com.br/beend.apk</code></li>
+                          <li>Baixe o APK do link: <code className="bg-muted px-1 py-0.5 rounded">https://totem.beend.tech/beend.apk</code></li>
                           <li>Instale o aplicativo no tablet</li>
                           <li>Faça login com as credenciais do terminal</li>
                           <li>O terminal ficará em modo quiosque exibindo a pesquisa</li>
@@ -489,7 +489,7 @@ export default function HelpPage() {
                   <div className="bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-4">
                     <h4 className="font-semibold text-green-900 dark:text-green-100 mb-2">Como Aumentar Limites</h4>
                     <p className="text-sm text-green-800 dark:text-green-200">
-                      Para aumentar o número de terminais permitidos, entre em contato com o administrador do sistema através do e-mail: <strong>contato@beend.com.br</strong>
+                      Para aumentar o número de terminais permitidos, entre em contato com o administrador do sistema através do e-mail: <strong>canalbackeend@gmail.com</strong>
                     </p>
                   </div>
                 </CardContent>
@@ -839,7 +839,7 @@ export default function HelpPage() {
                     <div className="p-4 border rounded-lg">
                       <h4 className="font-semibold mb-2">Acesso ao Painel</h4>
                       <p className="text-sm text-muted-foreground mb-2">
-                        URL: <code className="bg-muted px-2 py-1 rounded">https://beend.app/terminal-panel/login</code>
+                        URL: <code className="bg-muted px-2 py-1 rounded">https://totem.beend.tech/terminal-panel/login</code>
                       </p>
                       <p className="text-sm text-muted-foreground">
                         Faça login com o e-mail e senha do terminal.
@@ -1061,8 +1061,8 @@ export default function HelpPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="p-4 bg-background rounded-lg border">
                     <h4 className="font-semibold mb-2">📧 E-mail</h4>
-                    <a href="mailto:contato@beend.com.br" className="text-blue-600 hover:underline">
-                      contato@beend.com.br
+                    <a href="mailto:canalbackeend@gmail.com" className="text-blue-600 hover:underline">
+                      canalbackeend@gmail.com
                     </a>
                   </div>
                   <div className="p-4 bg-background rounded-lg border">

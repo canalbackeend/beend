@@ -270,10 +270,7 @@ export default function TerminalV2SurveyPage() {
   };
 
   const handleBack = () => {
-    if (showRespondentDataScreen) {
-      // Voltar da tela de dados para a última pergunta
-      setShowRespondentDataScreen(false);
-    } else if (currentQuestionIndex > 0) {
+    if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex((prev) => prev - 1);
     }
   };
@@ -850,7 +847,27 @@ export default function TerminalV2SurveyPage() {
             <div className="space-y-6 sm:space-y-8">
               {showRespondentDataScreen ? (
                 /* Tela de coleta de dados opcionais */
-                renderRespondentDataScreen()
+                <>
+                  {renderRespondentDataScreen()}
+                  {/* Botões da tela de dados adicionais */}
+                  <div className="flex gap-2 sm:gap-4 pt-3 sm:pt-4">
+                    <Button
+                      variant="outline"
+                      onClick={skipContactInfo}
+                      className="flex-1 h-12 sm:h-14 text-base sm:text-lg"
+                      disabled={loading}
+                    >
+                      Não, obrigado
+                    </Button>
+                    <Button
+                      onClick={saveContactInfo}
+                      className="flex-1 h-12 sm:h-14 text-base sm:text-lg font-semibold"
+                      disabled={loading}
+                    >
+                      {loading ? 'Salvando...' : 'Enviar meus dados'}
+                    </Button>
+                  </div>
+                </>
               ) : (
                 <>
                   {/* Question */}
@@ -879,34 +896,10 @@ export default function TerminalV2SurveyPage() {
                       />
                     </div>
                   )}
-                </>
-              )}
 
-              {/* Navigation Buttons - só aparecem quando necessário */}
-              {shouldShowAdvanceButton(currentQuestion) && (
-                <div className="flex gap-2 sm:gap-4 pt-3 sm:pt-4">
-                  {showRespondentDataScreen ? (
-                    // Botões da tela de dados adicionais
-                    <>
-                      <Button
-                        variant="outline"
-                        onClick={skipContactInfo}
-                        className="flex-1 h-12 sm:h-14 text-base sm:text-lg"
-                        disabled={loading}
-                      >
-                        Não, obrigado
-                      </Button>
-                      <Button
-                        onClick={saveContactInfo}
-                        className="flex-1 h-12 sm:h-14 text-base sm:text-lg font-semibold"
-                        disabled={loading}
-                      >
-                        {loading ? 'Salvando...' : 'Enviar meus dados'}
-                      </Button>
-                    </>
-                  ) : (
-                    // Botões normais de navegação da pesquisa
-                    <>
+                  {/* Navigation Buttons - só aparecem quando necessário */}
+                  {shouldShowAdvanceButton(currentQuestion) && (
+                    <div className="flex gap-2 sm:gap-4 pt-3 sm:pt-4">
                       {currentQuestionIndex > 0 && (
                         <Button
                           variant="outline"
@@ -928,9 +921,9 @@ export default function TerminalV2SurveyPage() {
                           ? 'Continuar'
                           : 'Avançar'}
                       </Button>
-                    </>
+                    </div>
                   )}
-                </div>
+                </>
               )}
             </div>
           </div>

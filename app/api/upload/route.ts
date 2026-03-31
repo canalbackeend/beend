@@ -18,6 +18,7 @@ export async function POST(request: NextRequest) {
 
     const formData = await request.formData();
     const file = formData.get('file') as File;
+    const type = formData.get('type') as string || 'employees';
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
@@ -43,11 +44,14 @@ export async function POST(request: NextRequest) {
     const extension = file.name.split('.').pop();
     const fileName = `${timestamp}-${random}.${extension}`;
 
+    // Determinar o tipo de upload
+    const uploadType = type === 'logo' ? 'logos' : 'employees';
+
     // Em desenvolvimento: salvar localmente no filesystem
     if (process.env.NODE_ENV === 'development') {
       try {
         // Criar diretório do usuário se não existir
-        const userDir = path.join(process.cwd(), 'public', 'uploads', 'employees', session.user.id);
+        const userDir = path.join(process.cwd(), 'public', 'uploads', uploadType, session.user.id);
         if (!existsSync(userDir)) {
           await mkdir(userDir, { recursive: true });
         }
@@ -57,7 +61,7 @@ export async function POST(request: NextRequest) {
         await writeFile(filePath, buffer);
 
         // Retornar URL relativa
-        const url = `/uploads/employees/${session.user.id}/${fileName}`;
+        const url = `/uploads/${uploadType}/${session.user.id}/${fileName}`;
         return NextResponse.json({ url });
       } catch (localError) {
         console.error('Local upload failed:', localError);
@@ -67,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     // Em produção: usar S3
     try {
-      const key = `employees/${session.user.id}/${fileName}`;
+      const key = `${uploadType}/${session.user.id}/${fileName}`;
       const url = await uploadToS3(buffer, key, file.type);
       return NextResponse.json({ url });
     } catch (uploadError) {

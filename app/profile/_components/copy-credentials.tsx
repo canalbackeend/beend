@@ -52,7 +52,7 @@ export function CopyCredentials({ userName, userEmail }: CopyCredentialsProps) {
       })
       .join('\n\n');
 
-    return `Olá ${userName}, segue os acessos para teste da plataforma:\n\nSegue os acessos:\n\nEndereço da plataforma: https://beend.app\nLogin: ${userEmail}\nSenha(Provisória): 123456\n\n${terminals.length > 0 ? `Painel individual dos terminais: https://beend.app/terminal-panel/login\n\nAcesso dos terminais:\n\n${terminalsList}\n\n` : ''}Link para download do APK de instalação do tablet:\nhttps://www.backeend.com.br/beend.apk`;
+    return `Olá ${userName}, segue os acessos para teste da plataforma:\n\nSegue os acessos:\n\nEndereço da plataforma: https://totem.beend.tech\nLogin: ${userEmail}\nSenha(Provisória): 123456\n\n${terminals.length > 0 ? `Painel individual dos terminais: https://totem.beend.tech/terminal-panel/login\n\nAcesso dos terminais:\n\n${terminalsList}\n\n` : ''}Link para download do APK de instalação do tablet:\nhttps://totem.beend.tech/beend.apk`;
   };
 
   const handleCopy = async () => {
@@ -116,7 +116,7 @@ export function CopyCredentials({ userName, userEmail }: CopyCredentialsProps) {
                   <div className="bg-background rounded-md p-4 space-y-2 border">
                     <p className="text-sm">
                       <span className="font-medium">Endereço da plataforma:</span>{' '}
-                      <span className="text-blue-600 dark:text-blue-400">https://beend.app</span>
+                      <span className="text-blue-600 dark:text-blue-400">https://totem.beend.tech</span>
                     </p>
                     <p className="text-sm">
                       <span className="font-medium">Login:</span>{' '}
@@ -133,7 +133,7 @@ export function CopyCredentials({ userName, userEmail }: CopyCredentialsProps) {
                       <div className="bg-background rounded-md p-4 space-y-2 border mt-4">
                         <p className="text-sm font-medium">Painel individual dos terminais:</p>
                         <p className="text-sm text-blue-600 dark:text-blue-400 break-all">
-                          https://beend.app/terminal-panel/login
+                          https://totem.beend.tech/terminal-panel/login
                         </p>
                       </div>
 
@@ -160,7 +160,7 @@ export function CopyCredentials({ userName, userEmail }: CopyCredentialsProps) {
                   <div className="bg-background rounded-md p-4 space-y-2 border mt-4">
                     <p className="text-sm font-medium">Link para download do APK de instalação do tablet:</p>
                     <p className="text-sm text-blue-600 dark:text-blue-400 break-all">
-                      https://www.backeend.com.br/beend.apk
+                      https://totem.beend.tech/beend.apk
                     </p>
                   </div>
                 </div>

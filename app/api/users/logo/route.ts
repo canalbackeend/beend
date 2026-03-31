@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/db';
-import { generatePresignedUploadUrl, deleteFile, getFileUrl } from '@/lib/s3';
+import { generatePresignedUploadUrl, deleteFile, getFileUrl, uploadToS3 } from '@/lib/s3';
 import { logActivity, ActivityAction, EntityType } from '@/lib/activity-log';
+import { writeFile, mkdir } from 'fs/promises';
+import { existsSync } from 'fs';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,15 +45,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Gerar nome único
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(7);
+    const extension = fileName.split('.').pop();
+    const cleanFileName = `${timestamp}-${random}.${extension}`;
+
+    // Em desenvolvimento: salvar localmente no filesystem
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        // Criar diretório se não existir
+        const logoDir = path.join(process.cwd(), 'public', 'uploads', 'logos', user.id);
+        if (!existsSync(logoDir)) {
+          await mkdir(logoDir, { recursive: true });
+        }
+
+        // Não precisamos fazer upload aqui - o cliente fará o crop e envia no PUT
+        // Retornar caminhos para uso local
+        return NextResponse.json({
+          uploadUrl: null, // Indica modo local
+          cloud_storage_path: `public/uploads/logos/${user.id}/${cleanFileName}`,
+          localMode: true,
+        });
+      } catch (localError) {
+        console.error('Local logo setup failed:', localError);
+        throw localError;
+      }
+    }
+
+    // Em produção: usar S3
     const { uploadUrl, cloud_storage_path } = await generatePresignedUploadUrl(
       fileName,
       contentType,
-      true // Logo sempre pública
+      true
     );
 
     return NextResponse.json({
       uploadUrl,
       cloud_storage_path,
+      localMode: false,
     });
   } catch (error) {
     console.error('Error generating upload URL:', error);
@@ -79,22 +112,20 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { cloud_storage_path } = body;
-
-    if (!cloud_storage_path) {
-      return NextResponse.json(
-        { error: 'Caminho do arquivo é obrigatório' },
-        { status: 400 }
-      );
-    }
+    const { cloud_storage_path, logoUrl: directUrl, isBase64 } = body;
 
     // Deletar logo antiga se existir
     if (user.logoUrl) {
       try {
-        // Extrair cloud_storage_path da logoUrl antiga
-        const oldPath = user.logoUrl.split('.amazonaws.com/')[1];
-        if (oldPath) {
-          await deleteFile(oldPath);
+        // Se for URL local
+        if (user.logoUrl.includes('/uploads/logos/')) {
+          // Não precisa deletar arquivo local em desenvolvimento
+        } else {
+          // É URL do S3 - deletar
+          const oldPath = user.logoUrl.split('.amazonaws.com/')[1];
+          if (oldPath) {
+            await deleteFile(oldPath);
+          }
         }
       } catch (error) {
         console.error('Error deleting old logo:', error);
@@ -102,8 +133,21 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // Gerar URL pública da nova logo
-    const logoUrl = await getFileUrl(cloud_storage_path, true);
+    let logoUrl: string;
+
+    // Em desenvolvimento: usar URL local
+    if (process.env.NODE_ENV === 'development' && directUrl) {
+      logoUrl = directUrl;
+    }
+    // Em produção: usar S3
+    else if (cloud_storage_path) {
+      logoUrl = await getFileUrl(cloud_storage_path, true);
+    } else {
+      return NextResponse.json(
+        { error: 'Caminho do arquivo é obrigatório' },
+        { status: 400 }
+      );
+    }
 
     // Atualizar usuário
     const updatedUser = await prisma.user.update({
