@@ -47,11 +47,18 @@ export async function POST(request: NextRequest) {
     // Determinar o tipo de upload
     const uploadType = type === 'logo' ? 'logos' : 'employees';
 
-    // Em desenvolvimento: salvar localmente no filesystem
-    if (process.env.NODE_ENV === 'development') {
+    // Verificar se tem AWS configurado
+    const hasAwsConfig = process.env.AWS_BUCKET_NAME && 
+                         process.env.AWS_ACCESS_KEY_ID && 
+                         process.env.AWS_SECRET_ACCESS_KEY;
+
+    // Se não tem AWS, salvar localmente (com Persistent Storage do Coolify)
+    if (!hasAwsConfig) {
       try {
-        // Criar diretório do usuário se não existir
-        const userDir = path.join(process.cwd(), 'public', 'uploads', uploadType, session.user.id);
+        // Usar diretório configurável ou padrão
+        const baseDir = process.env.UPLOAD_DIR || '/app/uploads';
+        const userDir = path.join(baseDir, uploadType, session.user.id);
+        
         if (!existsSync(userDir)) {
           await mkdir(userDir, { recursive: true });
         }
@@ -60,7 +67,7 @@ export async function POST(request: NextRequest) {
         const filePath = path.join(userDir, fileName);
         await writeFile(filePath, buffer);
 
-        // Retornar URL relativa
+        // Retornar URL
         const url = `/uploads/${uploadType}/${session.user.id}/${fileName}`;
         return NextResponse.json({ url });
       } catch (localError) {
@@ -69,7 +76,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Em produção: usar S3
+    // Tem AWS configurado: usar S3
     try {
       const key = `${uploadType}/${session.user.id}/${fileName}`;
       const url = await uploadToS3(buffer, key, file.type);

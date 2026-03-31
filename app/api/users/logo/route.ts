@@ -51,20 +51,23 @@ export async function POST(request: NextRequest) {
     const extension = fileName.split('.').pop();
     const cleanFileName = `${timestamp}-${random}.${extension}`;
 
-    // Em desenvolvimento: salvar localmente no filesystem
-    if (process.env.NODE_ENV === 'development') {
+    // Verificar se tem AWS configurado
+    const hasAwsConfig = process.env.AWS_BUCKET_NAME && 
+                         process.env.AWS_ACCESS_KEY_ID && 
+                         process.env.AWS_SECRET_ACCESS_KEY;
+
+    // Se não tem AWS, salvar localmente
+    if (!hasAwsConfig) {
       try {
-        // Criar diretório se não existir
-        const logoDir = path.join(process.cwd(), 'public', 'uploads', 'logos', user.id);
+        const baseDir = process.env.UPLOAD_DIR || '/app/uploads';
+        const logoDir = path.join(baseDir, 'logos', user.id);
         if (!existsSync(logoDir)) {
           await mkdir(logoDir, { recursive: true });
         }
 
-        // Não precisamos fazer upload aqui - o cliente fará o crop e envia no PUT
-        // Retornar caminhos para uso local
         return NextResponse.json({
-          uploadUrl: null, // Indica modo local
-          cloud_storage_path: `public/uploads/logos/${user.id}/${cleanFileName}`,
+          uploadUrl: null,
+          cloud_storage_path: `uploads/logos/${user.id}/${cleanFileName}`,
           localMode: true,
         });
       } catch (localError) {
@@ -73,7 +76,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Em produção: usar S3
+    // Tem AWS configurado: usar S3
     const { uploadUrl, cloud_storage_path } = await generatePresignedUploadUrl(
       fileName,
       contentType,
