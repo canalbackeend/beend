@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/db';
 import { generatePresignedUploadUrl, deleteFile, getFileUrl, uploadToS3 } from '@/lib/s3';
+import { supabase, uploadToSupabase, hasSupabaseConfig } from '@/lib/supabase';
 import { logActivity, ActivityAction, EntityType } from '@/lib/activity-log';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
@@ -50,6 +51,17 @@ export async function POST(request: NextRequest) {
     const random = Math.random().toString(36).substring(7);
     const extension = fileName.split('.').pop();
     const cleanFileName = `${timestamp}-${random}.${extension}`;
+
+    // Verificar configuração do Supabase
+    if (hasSupabaseConfig()) {
+      // Retornar URL de upload direto para o frontend usar
+      return NextResponse.json({
+        uploadUrl: null,
+        cloud_storage_path: `logos/${user.id}/${cleanFileName}`,
+        supabaseMode: true,
+        localMode: false,
+      });
+    }
 
     // Verificar se tem AWS configurado
     const hasAwsConfig = process.env.AWS_BUCKET_NAME && 
@@ -141,19 +153,27 @@ export async function PUT(request: NextRequest) {
 
     let logoUrl: string;
 
+    // Verificar configuração do Supabase
+    const hasSupabase = hasSupabaseConfig();
+    
     // Verificar se tem AWS configurado
     const hasAwsConfig = process.env.AWS_BUCKET_NAME && 
                          process.env.AWS_ACCESS_KEY_ID && 
                          process.env.AWS_SECRET_ACCESS_KEY;
 
+    // Se tem Supabase, usar URL pública do Supabase
+    if (hasSupabase && supabase && cloud_storage_path) {
+      const { data } = supabase.storage.from('uploads').getPublicUrl(cloud_storage_path);
+      logoUrl = data.publicUrl;
+    }
     // Se não tem AWS, usar URL local via API
-    if (!hasAwsConfig && directUrl) {
+    else if (!hasAwsConfig && directUrl) {
       // Converter caminho para URL da API
       const fileName = directUrl.split('/').pop();
       logoUrl = `/api/uploads?path=logos/${user.id}/${fileName}`;
     }
     // Tem AWS: usar S3
-    else if (cloud_storage_path) {
+    else if (hasAwsConfig && cloud_storage_path) {
       logoUrl = await getFileUrl(cloud_storage_path, true);
     } else {
       return NextResponse.json(

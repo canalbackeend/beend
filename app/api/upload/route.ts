@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { uploadToS3 } from '@/lib/s3';
+import { uploadToSupabase, hasSupabaseConfig } from '@/lib/supabase';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
@@ -46,6 +47,17 @@ export async function POST(request: NextRequest) {
 
     // Determinar o tipo de upload
     const uploadType = type === 'logo' ? 'logos' : 'employees';
+
+    // Verificar configuração do Supabase
+    if (hasSupabaseConfig()) {
+      try {
+        const key = `${uploadType}/${session.user.id}/${fileName}`;
+        const url = await uploadToSupabase(buffer, key, file.type, 'uploads');
+        return NextResponse.json({ url });
+      } catch (supabaseError) {
+        console.error('Supabase upload failed:', supabaseError);
+      }
+    }
 
     // Verificar se tem AWS configurado
     const hasAwsConfig = process.env.AWS_BUCKET_NAME && 
