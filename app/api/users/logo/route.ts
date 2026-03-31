@@ -30,6 +30,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { cloud_storage_path, directUrl, isBase64 } = body;
+    console.log('Logo PUT received:', { directUrl: !!directUrl, cloud_storage_path: !!cloud_storage_path });
 
     // Deletar logo antiga se existir
     if (user.logoUrl) {

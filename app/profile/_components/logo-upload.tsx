@@ -146,8 +146,7 @@ export function LogoUpload({ currentLogoUrl, onLogoUpdate }: LogoUploadProps) {
       });
 
       if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        throw new Error(errorData.error || 'Erro ao fazer upload');
+        throw new Error('Erro ao fazer upload');
       }
 
       const uploadData = await uploadResponse.json();
@@ -161,8 +160,7 @@ export function LogoUpload({ currentLogoUrl, onLogoUpdate }: LogoUploadProps) {
       });
 
       if (!updateResponse.ok) {
-        const errorData = await updateResponse.json();
-        throw new Error(errorData.error || 'Erro ao atualizar logo');
+        throw new Error('Erro ao atualizar logo');
       }
 
       const updateData = await updateResponse.json();
