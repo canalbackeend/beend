@@ -67,8 +67,8 @@ export async function POST(request: NextRequest) {
         const filePath = path.join(userDir, fileName);
         await writeFile(filePath, buffer);
 
-        // Retornar URL
-        const url = `/uploads/${uploadType}/${session.user.id}/${fileName}`;
+        // Retornar URL (usando API route para servir arquivos locais)
+        const url = `/api/uploads?path=${uploadType}/${session.user.id}/${fileName}`;
         return NextResponse.json({ url });
       } catch (localError) {
         console.error('Local upload failed:', localError);
