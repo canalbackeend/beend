@@ -2,9 +2,10 @@
 node_version = "20"
 
 [build]
-installCommand = "npm install --legacy-peer-deps --include=dev"
+installCommand = "npm install --legacy-peer-deps"
 build_command = "npx prisma generate && npm run build"
 cache_disable = ["next", "node_modules", "tsconfig"]
 
 [run]
 start_command = "npm start"
+

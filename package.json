@@ -5,7 +5,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:seed": "tsx scripts/seed.ts"
   },
   "prisma": {
     "seed": "tsx --require dotenv/config scripts/seed.ts"
@@ -87,6 +88,7 @@
     "date-fns": "3.6.0",
     "dayjs": "1.11.13",
     "dotenv": "16.5.0",
+
     "embla-carousel-react": "8.3.0",
     "formik": "2.4.5",
     "framer-motion": "10.18.0",
