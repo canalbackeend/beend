@@ -1,2 +1,9 @@
+[nixpacks]
+node_version = "20"
+
 [build]
-installCommand = "npm install --legacy-peer-deps"
+install_command = "npm install --legacy-peer-deps"
+build_command = "npx prisma generate && npm run build"
+
+[run]
+start_command = "npm start"
