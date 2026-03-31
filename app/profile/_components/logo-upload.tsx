@@ -153,8 +153,8 @@ export function LogoUpload({ currentLogoUrl, onLogoUpdate }: LogoUploadProps) {
 
       let logoUrl: string;
 
-      // Se tem Supabase configurado (supabaseMode ou localMode + URL do Supabase)
-      if (supabaseMode || (localMode && cloud_storage_path?.includes('logos/'))) {
+      // Se tem Supabase configurado
+      if (supabaseMode) {
         // Fazer upload via API /api/upload (que agora suporta Supabase)
         const formData = new FormData();
         formData.append('file', croppedFile);
@@ -171,6 +171,20 @@ export function LogoUpload({ currentLogoUrl, onLogoUpdate }: LogoUploadProps) {
 
         const uploadData = await uploadResponse.json();
         logoUrl = uploadData.url;
+
+        // Salvar no banco
+        const updateResponse = await fetch('/api/users/logo', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ directUrl: logoUrl }),
+        });
+
+        if (!updateResponse.ok) {
+          throw new Error('Erro ao atualizar logo');
+        }
+
+        const updateData = await updateResponse.json();
+        logoUrl = updateData.logoUrl;
       } else if (localMode || !uploadUrl) {
         // Modo desenvolvimento: fazer upload direto para o servidor local
         const formData = new FormData();
