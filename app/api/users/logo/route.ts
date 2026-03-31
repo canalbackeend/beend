@@ -164,6 +164,7 @@ export async function PUT(request: NextRequest) {
     // Se tem Supabase, usar URL pública do Supabase
     if (hasSupabase && supabase && cloud_storage_path) {
       const { data } = supabase.storage.from('uploads').getPublicUrl(cloud_storage_path);
+      console.log('Supabase public URL:', data.publicUrl);
       logoUrl = data.publicUrl;
     }
     // Se não tem AWS, usar URL local via API
