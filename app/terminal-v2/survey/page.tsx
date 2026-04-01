@@ -142,6 +142,18 @@ export default function TerminalV2SurveyPage() {
   }, [router]);
 
   useEffect(() => {
+    if (session && session.questions && answers.length === 0) {
+      const initialAnswers = session.questions.map((q) => ({
+        questionId: q.id,
+        rating: null,
+        selectedOptions: [],
+        comment: '',
+      }));
+      setAnswers(initialAnswers);
+    }
+  }, [session]);
+
+  useEffect(() => {
     const interval = setInterval(() => {
       setRemainingTime((prev) => {
         if (prev <= 1) {
