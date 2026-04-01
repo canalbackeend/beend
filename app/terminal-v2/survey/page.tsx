@@ -34,20 +34,6 @@ interface Question {
   scaleMaxLabel?: string;
 }
 
-interface Question {
-  id: string;
-  text: string;
-  type: string;
-  order: number;
-  isRequired: boolean;
-  allowOptionalComment: boolean;
-  options?: { id: string; text: string; color?: string; imageUrl?: string }[];
-  scaleMin?: number;
-  scaleMax?: number;
-  scaleMinLabel?: string;
-  scaleMaxLabel?: string;
-}
-
 interface TerminalSession {
   terminalId: string;
   terminalName: string;
@@ -231,15 +217,18 @@ export default function TerminalV2SurveyPage() {
     if (session) {
       const currentQuestion = session.questions[currentQuestionIndex];
       if (currentQuestion && !shouldShowAdvanceButton(currentQuestion)) {
-        // Pequeno delay para dar feedback visual da seleção E permitir que o state atualize
+        // Pequeno delay para feedback visual E garantir state atualizado
         setTimeout(() => {
           if (currentQuestionIndex < session.questions.length - 1) {
             setCurrentQuestionIndex((prev) => prev + 1);
           } else {
-            // Última pergunta - salvar (com delay adicional para garantir state atualizado)
-            setTimeout(() => saveSurveyAnswers(), 100);
+            // Na última pergunta, esperar mais um pouco e salvar
+            setTimeout(() => {
+              console.log('About to save, answers state is:', JSON.stringify(answers));
+              saveSurveyAnswers();
+            }, 500);
           }
-        }, 300);
+        }, 400);
       }
     }
   };
