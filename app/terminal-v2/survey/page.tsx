@@ -217,13 +217,13 @@ export default function TerminalV2SurveyPage() {
     if (session) {
       const currentQuestion = session.questions[currentQuestionIndex];
       if (currentQuestion && !shouldShowAdvanceButton(currentQuestion)) {
-        // Pequeno delay para dar feedback visual da seleção
+        // Pequeno delay para dar feedback visual da seleção E permitir que o state atualize
         setTimeout(() => {
           if (currentQuestionIndex < session.questions.length - 1) {
             setCurrentQuestionIndex((prev) => prev + 1);
           } else {
-            // Última pergunta - salvar
-            saveSurveyAnswers();
+            // Última pergunta - salvar (com delay adicional para garantir state atualizado)
+            setTimeout(() => saveSurveyAnswers(), 100);
           }
         }, 300);
       }
