@@ -1,7 +1,13 @@
 import { verify } from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = process.env.NEXTAUTH_SECRET || 'your-secret-key';
+const getJwtSecret = (): string => {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    throw new Error('NEXTAUTH_SECRET environment variable is required for terminal authentication');
+  }
+  return secret;
+};
 
 export interface TerminalSession {
   terminalId: string;
@@ -21,7 +27,7 @@ export async function getTerminalSession(): Promise<TerminalSession | null> {
       return null;
     }
 
-    const decoded = verify(token.value, JWT_SECRET) as TerminalSession;
+    const decoded = verify(token.value, getJwtSecret()) as TerminalSession;
 
     if (decoded.type !== 'terminal') {
       return null;
