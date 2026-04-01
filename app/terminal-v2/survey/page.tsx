@@ -34,13 +34,6 @@ interface Question {
   scaleMaxLabel?: string;
 }
 
-interface Answer {
-  questionId: string;
-  rating: number | null;
-  selectedOptions: string[];
-  comment: string;
-}
-
 interface TerminalSession {
   terminalId: string;
   terminalName: string;
@@ -63,7 +56,8 @@ export default function TerminalV2SurveyPage() {
   const [session, setSession] = useState<TerminalSession | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
-  const [answers, setAnswers] = useState<Answer[]>([]);
+  const [answers, setAnswers] = useState<{ [questionId: string]: any }>({});
+  const [comments, setComments] = useState<{ [questionId: string]: string }>({});
   const [loading, setLoading] = useState(false);
   const [remainingTime, setRemainingTime] = useState(60);
   const [logoutClicks, setLogoutClicks] = useState(0);
@@ -75,55 +69,31 @@ export default function TerminalV2SurveyPage() {
   const [surveyCompleted, setSurveyCompleted] = useState(false);
   const router = useRouter();
 
-  // Initialize answers when session loads
-  useEffect(() => {
-    if (session?.questions) {
-      const initialAnswers = session.questions.map((q) => ({
-        questionId: q.id,
-        rating: null as number | null,
-        selectedOptions: [] as string[],
-        comment: '',
-      }));
-      setAnswers(initialAnswers);
-    }
-  }, [session]);
-
-  // Render current answer for a question
-  const getCurrentAnswer = (questionId: string): Answer | undefined => {
-    return answers.find((a) => a.questionId === questionId);
-  };
-
   useEffect(() => {
     setMounted(true);
     
-    // FORÇAR DARK MODE
     document.documentElement.classList.add('dark');
     document.documentElement.style.colorScheme = 'dark';
     
-    // Limpar qualquer configuração de tema que possa interferir
     if (typeof window !== 'undefined') {
       localStorage.removeItem('theme');
       localStorage.removeItem('color-scheme');
     }
     
-    // Verificar sessão do terminal
     const terminalSession = localStorage.getItem('terminalSession');
     const savedSessionV2 = localStorage.getItem('terminalSessionV2');
     const selectedCampaign = localStorage.getItem('selectedCampaign');
     
-    // Se tiver sessão v2 (formato antigo com campanha), usa ela
     if (savedSessionV2) {
       const parsedSession: TerminalSession = JSON.parse(savedSessionV2);
       setSession(parsedSession);
       return;
     }
     
-    // Se tiver apenas terminalSession + selectedCampaign, busca a campanha da API
     if (terminalSession && selectedCampaign) {
       const terminal = JSON.parse(terminalSession);
       const campaign = JSON.parse(selectedCampaign);
       
-      // Buscar dados da campanha
       fetch(`/api/terminals/${terminal.terminalId}/campaigns`)
         .then(res => res.json())
         .then(data => {
@@ -147,7 +117,6 @@ export default function TerminalV2SurveyPage() {
               timestamp: Date.now(),
             };
             setSession(newSession);
-            // Atualizar o localStorage para consistência
             localStorage.setItem('terminalSessionV2', JSON.stringify(newSession));
           } else {
             toast.error('Campanha não encontrada');
@@ -162,17 +131,14 @@ export default function TerminalV2SurveyPage() {
       return;
     }
     
-    // Nenhuma sessão válida encontrada
     toast.error('Sessão expirada. Faça login novamente.');
     router.push('/terminal-v2/login');
   }, [router]);
 
-  // Cronômetro regressivo de 60 segundos
   useEffect(() => {
     const interval = setInterval(() => {
       setRemainingTime((prev) => {
         if (prev <= 1) {
-          // Quando o tempo acaba, reinicia a pesquisa
           handleResetSurvey();
           return 60;
         }
@@ -183,7 +149,6 @@ export default function TerminalV2SurveyPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Reseta o cronômetro ao toque em qualquer lugar da tela
   const handleScreenTouch = () => {
     setRemainingTime(60);
   };
@@ -209,14 +174,8 @@ export default function TerminalV2SurveyPage() {
 
   const handleResetSurvey = () => {
     setCurrentQuestionIndex(0);
-    if (session?.questions) {
-      setAnswers(session.questions.map((q) => ({
-        questionId: q.id,
-        rating: null as number | null,
-        selectedOptions: [] as string[],
-        comment: '',
-      })));
-    }
+    setAnswers({});
+    setComments({});
     setShowRespondentDataScreen(false);
     setRespondentName('');
     setRespondentPhone('');
@@ -226,81 +185,46 @@ export default function TerminalV2SurveyPage() {
     setRemainingTime(60);
   };
 
-  // Função para verificar se deve mostrar o botão de avançar
   const shouldShowAdvanceButton = (question: Question): boolean => {
-    // Sempre mostrar botão para múltipla escolha
     if (question.type === 'MULTIPLE_CHOICE') return true;
-    // Sempre mostrar botão quando há comentário opcional
     if (question.allowOptionalComment) return true;
-    // Para texto, sempre mostrar botão
     if (question.type === 'TEXT_INPUT') return true;
-    // Para os demais tipos, não mostrar (avanço automático)
     return false;
   };
 
   const handleAnswer = (questionId: string, value: any) => {
-    console.log('handleAnswer called:', { questionId, value, type: typeof value });
+    setAnswers((prev) => ({ ...prev, [questionId]: value }));
     
-    let newAnswers: Answer[];
-    
-    if (typeof value === 'number') {
-      // Rating based answers (SMILE, NPS, SCALE)
-      newAnswers = answers.map((a) =>
-        a.questionId === questionId ? { ...a, rating: value } : a
-      );
-    } else if (Array.isArray(value)) {
-      // Selected options (SINGLE_CHOICE, MULTIPLE_CHOICE, EMPLOYEE_RATING)
-      newAnswers = answers.map((a) =>
-        a.questionId === questionId ? { ...a, selectedOptions: value } : a
-      );
-    } else {
-      // Text input
-      newAnswers = answers.map((a) =>
-        a.questionId === questionId ? { ...a, comment: value } : a
-      );
-    }
-    
-    setAnswers(newAnswers);
-    // Verificar se deve avançar automaticamente
     if (session) {
       const currentQuestion = session.questions[currentQuestionIndex];
       if (currentQuestion && !shouldShowAdvanceButton(currentQuestion)) {
-        // Pequeno delay para feedback visual E garantir state atualizado
         setTimeout(() => {
           if (currentQuestionIndex < session.questions.length - 1) {
             setCurrentQuestionIndex((prev) => prev + 1);
           } else {
-            // Na última pergunta, esperar mais um pouco e salvar
-            setTimeout(() => {
-              console.log('About to save, answers state is:', JSON.stringify(answers));
-              saveSurveyAnswers();
-            }, 500);
+            saveSurveyAnswers();
           }
-        }, 400);
+        }, 300);
       }
     }
   };
 
   const handleComment = (questionId: string, comment: string) => {
-    setAnswers((prev) =>
-      prev.map((a) => (a.questionId === questionId ? { ...a, comment } : a))
-    );
+    setComments((prev) => ({ ...prev, [questionId]: comment }));
   };
 
-  // Função auxiliar para verificar se uma pergunta foi respondida
   const isQuestionAnswered = (question: Question): boolean => {
-    const currentAnswer = answers.find((a) => a.questionId === question.id);
-    
-    if (!currentAnswer) return false;
+    const value = answers[question.id];
+    const comment = comments[question.id];
     
     if (question.type === 'SMILE' || question.type === 'SIMPLE_SMILE' || 
         question.type === 'NPS' || question.type === 'SCALE') {
-      return currentAnswer.rating !== null && currentAnswer.rating !== undefined;
+      return value !== undefined && value !== null;
     } else if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE' || 
                question.type === 'EMPLOYEE_RATING') {
-      return Array.isArray(currentAnswer.selectedOptions) && currentAnswer.selectedOptions.length > 0;
+      return Array.isArray(value) && value.length > 0;
     } else if (question.type === 'TEXT_INPUT') {
-      return typeof currentAnswer.comment === 'string' && currentAnswer.comment.trim() !== '';
+      return typeof value === 'string' && value.trim() !== '';
     }
     
     return false;
@@ -311,7 +235,6 @@ export default function TerminalV2SurveyPage() {
 
     const currentQuestion = session.questions[currentQuestionIndex];
     
-    // Validar apenas se a pergunta for obrigatória
     if (currentQuestion.isRequired && !isQuestionAnswered(currentQuestion)) {
       toast.error('Por favor, responda a pergunta antes de continuar');
       return;
@@ -320,7 +243,6 @@ export default function TerminalV2SurveyPage() {
     if (currentQuestionIndex < session.questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
     } else {
-      // Chegou na última pergunta - SALVAR PESQUISA IMEDIATAMENTE
       await saveSurveyAnswers();
     }
   };
@@ -331,32 +253,35 @@ export default function TerminalV2SurveyPage() {
     }
   };
 
-  // Função para salvar as respostas da pesquisa (sem dados de contato)
   const saveSurveyAnswers = async () => {
     if (!session) return;
 
     setLoading(true);
-    console.log('saveSurveyAnswers - answers state:', JSON.stringify(answers));
-    console.log('saveSurveyAnswers - currentQuestionIndex:', currentQuestionIndex);
-    
-    // Delay to ensure state is updated
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    console.log('saveSurveyAnswers - answers state AFTER DELAY:', JSON.stringify(answers));
     
     try {
-      // Usar as answers diretamente (já estão no formato correto)
-      const formattedAnswers = answers.map((a) => {
-        const question = session.questions.find((q) => q.id === a.questionId);
-        console.log(`Question ${a.questionId} (${question?.type}): rating =`, a.rating);
-        
-        return {
-          questionId: a.questionId,
-          rating: a.rating,
-          selectedOptions: a.selectedOptions,
-          comment: a.comment || null,
+      const formattedAnswers = session.questions.map((q) => {
+        const value = answers[q.id];
+        const comment = comments[q.id];
+
+        const answer: any = {
+          questionId: q.id,
+          rating: null,
+          selectedOptions: [],
+          comment: comment || null,
         };
+
+        if (q.type === 'SMILE' || q.type === 'SIMPLE_SMILE' || q.type === 'NPS' || q.type === 'SCALE') {
+          answer.rating = value !== undefined && value !== null ? Number(value) : null;
+        } else if (q.type === 'SINGLE_CHOICE' || q.type === 'MULTIPLE_CHOICE' || q.type === 'EMPLOYEE_RATING') {
+          answer.selectedOptions = value || [];
+        } else if (q.type === 'TEXT_INPUT') {
+          answer.comment = value || '';
+        }
+
+        return answer;
       });
+
+      console.log('Sending answers:', JSON.stringify(formattedAnswers));
 
       const response = await fetch('/api/responses', {
         method: 'POST',
@@ -365,7 +290,6 @@ export default function TerminalV2SurveyPage() {
           campaignId: session.campaignId,
           terminalId: session.terminalId,
           answers: formattedAnswers,
-          // Não envia dados de contato ainda
         }),
       });
 
@@ -378,12 +302,10 @@ export default function TerminalV2SurveyPage() {
       setSavedResponseId(data.id);
       setSurveyCompleted(true);
 
-      // Verificar se deve mostrar tela de dados adicionais
       const shouldCollectData = session.collectName || session.collectPhone || session.collectEmail;
       if (shouldCollectData) {
         setShowRespondentDataScreen(true);
       } else {
-        // Redirecionar direto para thankyou se não coleta dados
         router.push('/terminal-v2/thankyou');
       }
     } catch (error) {
@@ -394,7 +316,6 @@ export default function TerminalV2SurveyPage() {
     }
   };
 
-  // Função para atualizar os dados de contato (opcional)
   const saveContactInfo = async () => {
     if (!savedResponseId) return;
 
@@ -426,20 +347,14 @@ export default function TerminalV2SurveyPage() {
     }
   };
 
-  // Função para pular os dados de contato e ir direto para thankyou
   const skipContactInfo = () => {
     router.push('/terminal-v2/thankyou');
   };
 
-  // Função para formatar telefone brasileiro (xx) x xxxx-xxxx
   const formatPhoneNumber = (value: string): string => {
-    // Remove todos os caracteres não-numéricos
     const numbers = value.replace(/\D/g, '');
-    
-    // Limita a 11 dígitos
     const limitedNumbers = numbers.slice(0, 11);
     
-    // Aplica a formatação progressivamente
     if (limitedNumbers.length <= 2) {
       return limitedNumbers;
     } else if (limitedNumbers.length <= 3) {
@@ -451,7 +366,6 @@ export default function TerminalV2SurveyPage() {
     }
   };
 
-  // Handler para mudança no campo de telefone com máscara
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formatted = formatPhoneNumber(e.target.value);
     setRespondentPhone(formatted);
@@ -462,7 +376,6 @@ export default function TerminalV2SurveyPage() {
 
     return (
       <div className="space-y-6 sm:space-y-8">
-        {/* Mensagem de Sucesso */}
         <div className="text-center space-y-4">
           <div className="flex justify-center">
             <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
@@ -494,7 +407,6 @@ export default function TerminalV2SurveyPage() {
           )}
         </div>
 
-        {/* Campos opcionais */}
         <div className="space-y-4">
           {session.collectName && (
             <div className="space-y-2">
@@ -552,11 +464,10 @@ export default function TerminalV2SurveyPage() {
     if (!session) return null;
 
     const question = session.questions[currentQuestionIndex];
-    const currentAnswer = answers.find((a) => a.questionId === question.id);
+    const currentAnswer = answers[question.id];
 
     switch (question.type) {
       case 'SMILE':
-        // SMILE com 5 opções
         const smileOptions = [
           { value: 5, icon: faFaceGrin, label: 'Muito Satisfeito', color: 'text-green-600' },
           { value: 4, icon: faFaceSmile, label: 'Satisfeito', color: 'text-lime-600' },
@@ -576,7 +487,7 @@ export default function TerminalV2SurveyPage() {
                     flex flex-col items-center justify-center p-3 sm:p-4 lg:p-6 border-2 transition-all
                     hover:scale-105 active:scale-95
                     ${
-                      currentAnswer?.rating === option.value
+                      currentAnswer === option.value
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 scale-105'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                     }
@@ -596,7 +507,6 @@ export default function TerminalV2SurveyPage() {
         );
 
       case 'SIMPLE_SMILE':
-        // SIMPLE_SMILE com 4 opções (Excelente, Bom, Regular, Ruim)
         const simpleSmileOptions = [
           { value: 4, icon: faFaceGrin, label: 'Excelente', color: 'text-green-600' },
           { value: 3, icon: faFaceSmile, label: 'Bom', color: 'text-lime-600' },
@@ -615,7 +525,7 @@ export default function TerminalV2SurveyPage() {
                     flex flex-col items-center justify-center p-3 sm:p-4 lg:p-6 border-2 transition-all
                     hover:scale-105 active:scale-95
                     ${
-                      currentAnswer?.rating === option.value
+                      currentAnswer === option.value
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 scale-105'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                     }
@@ -637,7 +547,6 @@ export default function TerminalV2SurveyPage() {
       case 'NPS':
         return (
           <div className="space-y-4">
-            {/* Mobile: 2 linhas (6 + 5), Tablet: 11 colunas */}
             <div className="grid grid-cols-6 md:grid-cols-11 gap-1.5 sm:gap-2">
               {Array.from({ length: 11 }, (_, i) => i).map((num) => {
                 let bgColor = 'bg-red-500';
@@ -653,7 +562,7 @@ export default function TerminalV2SurveyPage() {
                       aspect-square flex items-center justify-center transition-all
                       text-base sm:text-lg md:text-xl font-bold text-white hover:scale-105 active:scale-95
                       ${
-                        currentAnswer?.rating === num
+                        currentAnswer === num
                           ? 'ring-2 sm:ring-4 ring-blue-500 scale-105'
                           : ''
                       }
@@ -688,7 +597,7 @@ export default function TerminalV2SurveyPage() {
                     aspect-square w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center border-2 transition-all
                     text-xl sm:text-2xl font-bold hover:scale-105 active:scale-95
                     ${
-                      currentAnswer?.rating === num
+                      currentAnswer === num
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 scale-105'
                         : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600'
                     }
@@ -711,7 +620,7 @@ export default function TerminalV2SurveyPage() {
         return (
           <div className="space-y-3">
             {question.options?.map((option) => {
-              const isSelected = currentAnswer?.selectedOptions?.includes(option.id) ?? false;
+              const isSelected = currentAnswer && currentAnswer.includes(option.id);
               const customColor = option.color || '#3b82f6';
               return (
                 <button
@@ -744,7 +653,7 @@ export default function TerminalV2SurveyPage() {
         );
 
       case 'MULTIPLE_CHOICE':
-        const selectedOptions = currentAnswer?.selectedOptions || [];
+        const selectedOptions = currentAnswer || [];
         return (
           <div className="space-y-3">
             {question.options?.map((option) => {
@@ -755,8 +664,8 @@ export default function TerminalV2SurveyPage() {
                   key={option.id}
                   onClick={() => {
                     const newSelection = isSelected
-                      ? selectedOptions.filter((o: string) => o !== option.id)
-                      : [...selectedOptions, option.id];
+                      ? (selectedOptions as string[]).filter((o) => o !== option.id)
+                      : [...(selectedOptions as string[]), option.id];
                     handleAnswer(question.id, newSelection);
                   }}
                   style={{
@@ -799,7 +708,7 @@ export default function TerminalV2SurveyPage() {
         return (
           <div className="space-y-4">
             <Textarea
-              value={currentAnswer?.comment || ''}
+              value={currentAnswer || ''}
               onChange={(e) => handleAnswer(question.id, e.target.value)}
               placeholder="Digite sua resposta aqui..."
               className="min-h-[200px] text-lg resize-none"
@@ -807,7 +716,7 @@ export default function TerminalV2SurveyPage() {
               maxLength={1000}
             />
             <div className="text-sm text-gray-400 text-right">
-              {(currentAnswer?.comment || '').length} / 1000 caracteres
+              {(currentAnswer || '').length} / 1000 caracteres
             </div>
           </div>
         );
@@ -817,7 +726,7 @@ export default function TerminalV2SurveyPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {question.options?.map((option) => {
-              const isSelected = currentAnswer?.selectedOptions?.includes(option.id) ?? false;
+                const isSelected = currentAnswer && currentAnswer.includes(option.id);
                 return (
                   <button
                     key={option.id}
@@ -885,22 +794,17 @@ export default function TerminalV2SurveyPage() {
       onClick={handleScreenTouch}
       onTouchStart={handleScreenTouch}
     >
-      {/* Header - Minimalista, apenas espaçamento */}
       <header className="bg-background">
         <div className="h-4"></div>
       </header>
 
-      {/* Content - altura delimitada para não ultrapassar footer fixo */}
       <main className="flex-1 container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-4xl h-[calc(100vh-200px)] overflow-y-auto">
-        {/* Card sem bordas, shadows, border-radius */}
         <div className="bg-background mb-[6.5rem]">
           <div className="p-2 sm:p-4 md:p-6 lg:p-8">
             <div className="space-y-6 sm:space-y-8">
               {showRespondentDataScreen ? (
-                /* Tela de coleta de dados opcionais */
                 <>
                   {renderRespondentDataScreen()}
-                  {/* Botões da tela de dados adicionais */}
                   <div className="flex gap-2 sm:gap-4 pt-3 sm:pt-4">
                     <Button
                       variant="outline"
@@ -921,7 +825,6 @@ export default function TerminalV2SurveyPage() {
                 </>
               ) : (
                 <>
-                  {/* Question */}
                   <div>
                     <h2 className="text-2xl sm:text-3xl md:text-5xl lg:text-5xl font-bold mb-6 sm:mb-8 text-center px-2">
                       {currentQuestion.text}
@@ -932,12 +835,11 @@ export default function TerminalV2SurveyPage() {
                     {renderQuestion()}
                   </div>
 
-                  {/* Optional Comment - só aparece se allowOptionalComment for true */}
                   {currentQuestion.type !== 'TEXT_INPUT' && currentQuestion.allowOptionalComment && (
                     <div className="space-y-2">
                       <Label className="text-base">Comentário (opcional)</Label>
                       <Textarea
-                        value={getCurrentAnswer(currentQuestion.id)?.comment || ''}
+                        value={comments[currentQuestion.id] || ''}
                         onChange={(e) => handleComment(currentQuestion.id, e.target.value)}
                         placeholder="Deixe um comentário adicional..."
                         className="resize-none"
@@ -948,7 +850,6 @@ export default function TerminalV2SurveyPage() {
                     </div>
                   )}
 
-                  {/* Navigation Buttons - só aparecem quando necessário */}
                   {shouldShowAdvanceButton(currentQuestion) && (
                     <div className="flex gap-2 sm:gap-4 pt-3 sm:pt-4">
                       {currentQuestionIndex > 0 && (
@@ -981,11 +882,9 @@ export default function TerminalV2SurveyPage() {
         </div>
       </main>
 
-      {/* Footer fixo - com justify-between, progresso e cronômetro embaixo */}
       <footer className="fixed bottom-0 left-0 right-0 bg-background border-t py-4 z-50">
         <div className="container mx-auto px-4">
           <div className="flex flex-col gap-4">
-            {/* Progress Bar */}
             <div className="space-y-2">
               <div className="flex justify-between text-sm text-muted-foreground dark:text-gray-400">
                 <span>
@@ -996,7 +895,6 @@ export default function TerminalV2SurveyPage() {
               <Progress value={progress} className="h-2" />
             </div>
 
-            {/* Footer Info */}
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2 sm:gap-3">
                 <div className="relative w-24 sm:w-32 h-6">
