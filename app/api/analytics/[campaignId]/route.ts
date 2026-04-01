@@ -133,9 +133,12 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
 
         // Distribuição de respostas
         ratings.forEach((rating: number) => {
-          distribution[rating] = (distribution[rating] || 0) + 1;
+          const ratingNum = Number(rating);
+          if (!isNaN(ratingNum)) {
+            distribution[ratingNum] = (distribution[ratingNum] || 0) + 1;
+          }
         });
-        console.log(`Question ${question.id} (${question.type}): ${ratings.length} ratings, distribution:`, distribution);
+        console.log(`Question ${question.id} (${question.type}): ${ratings.length} ratings, distribution:`, JSON.stringify(distribution));
 
         // Comentários negativos
         const threshold = question.type === 'SMILE' ? 2 : question.type === 'SIMPLE_SMILE' ? 2 : question.type === 'NPS' ? 6 : (question.scaleMin || 1) + 1;
