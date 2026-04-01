@@ -201,22 +201,10 @@ export default function TerminalV2SurveyPage() {
     setAnswers((prev) =>
       prev.map((a) => (a.questionId === questionId ? { ...a, [field]: value } : a))
     );
-
-    if (session) {
-      const currentQuestion = session.questions[currentQuestionIndex];
-      if (currentQuestion && !shouldShowAdvanceButton(currentQuestion) && field === 'rating' && value !== null) {
-        setTimeout(() => {
-          if (currentQuestionIndex < session.questions.length - 1) {
-            setCurrentQuestionIndex((prev) => prev + 1);
-          } else {
-            saveSurveyAnswers();
-          }
-        }, 300);
-      }
-    }
   };
 
   const updateAnswer = (questionId: string, field: keyof Answer, value: any) => {
+    const currentIdx = currentQuestionIndex;
     const existingAnswer = answers.find((a) => a.questionId === questionId);
     if (existingAnswer) {
       handleAnswer(questionId, field, value);
@@ -229,6 +217,23 @@ export default function TerminalV2SurveyPage() {
         [field]: value,
       };
       setAnswers((prev) => [...prev, newAnswer]);
+    }
+
+    if (session) {
+      const currentQuestion = session.questions[currentQuestionIndex];
+      if (currentQuestion && !shouldShowAdvanceButton(currentQuestion)) {
+        setTimeout(() => {
+          setCurrentQuestionIndex((prev) => {
+            if (prev !== currentIdx) return prev;
+            if (prev < session.questions.length - 1) {
+              return prev + 1;
+            } else {
+              saveSurveyAnswers();
+              return prev;
+            }
+          });
+        }, 300);
+      }
     }
   };
 
