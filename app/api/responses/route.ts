@@ -60,6 +60,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Criar resposta
+    console.log('Creating response with answers:', JSON.stringify(answers.map((a: any) => ({
+      questionId: a.questionId,
+      rating: a.rating,
+      selectedOptions: a.selectedOptions,
+      comment: a.comment
+    }))));
+    
     const response = await prisma.response.create({
       data: {
         campaignId,

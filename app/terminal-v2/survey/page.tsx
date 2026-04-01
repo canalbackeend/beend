@@ -210,6 +210,7 @@ export default function TerminalV2SurveyPage() {
   };
 
   const handleAnswer = (questionId: string, value: any) => {
+    console.log('handleAnswer called:', { questionId, value, type: typeof value });
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
     
     // Verificar se deve avançar automaticamente
@@ -280,11 +281,15 @@ export default function TerminalV2SurveyPage() {
     if (!session) return;
 
     setLoading(true);
+    console.log('saveSurveyAnswers - answers state:', JSON.stringify(answers));
+    console.log('saveSurveyAnswers - currentQuestionIndex:', currentQuestionIndex);
     try {
       // Formatar respostas no formato correto para a API
       const formattedAnswers = session.questions.map((q) => {
         const value = answers[q.id];
         const comment = comments[q.id];
+
+        console.log(`Question ${q.id} (${q.type}): value =`, value);
 
         // Estrutura padrão de resposta
         const answer: any = {
