@@ -215,6 +215,11 @@ export default function ReportPage() {
       const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
+        console.log('Analytics data received:', data.questionMetrics?.map((m: any) => ({
+          questionId: m.questionId,
+          type: m.questionType,
+          distribution: m.distribution
+        })));
         setAnalytics(data);
       } else {
         toast.error('Erro ao carregar dados da campanha');
