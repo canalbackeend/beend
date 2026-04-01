@@ -44,6 +44,11 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
       },
     });
 
+    console.log('Campaign loaded:', { 
+      questionCount: campaign?.questions?.length, 
+      questionTypes: campaign?.questions?.map((q: any) => q.type) 
+    });
+
     if (!campaign) {
       return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
     }
@@ -116,6 +121,8 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
     });
 
     const totalResponses = responses.length;
+    console.log('Total responses found:', totalResponses);
+    console.log('Sample answers:', responses[0]?.answers?.slice(0, 2));
 
     // Calcular métricas por pergunta
     const questionMetrics = campaign.questions.map((question: any) => {
