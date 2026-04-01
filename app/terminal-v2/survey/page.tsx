@@ -34,6 +34,13 @@ interface Question {
   scaleMaxLabel?: string;
 }
 
+interface Answer {
+  questionId: string;
+  rating: number | null;
+  selectedOptions: string[];
+  comment: string;
+}
+
 interface TerminalSession {
   terminalId: string;
   terminalName: string;
@@ -56,8 +63,7 @@ export default function TerminalV2SurveyPage() {
   const [session, setSession] = useState<TerminalSession | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [mounted, setMounted] = useState(false);
-  const [answers, setAnswers] = useState<Record<string, any>>({});
-  const [comments, setComments] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(false);
   const [remainingTime, setRemainingTime] = useState(60);
   const [logoutClicks, setLogoutClicks] = useState(0);
@@ -68,6 +74,24 @@ export default function TerminalV2SurveyPage() {
   const [savedResponseId, setSavedResponseId] = useState<string | null>(null);
   const [surveyCompleted, setSurveyCompleted] = useState(false);
   const router = useRouter();
+
+  // Initialize answers when session loads
+  useEffect(() => {
+    if (session?.questions) {
+      const initialAnswers = session.questions.map((q) => ({
+        questionId: q.id,
+        rating: null as number | null,
+        selectedOptions: [] as string[],
+        comment: '',
+      }));
+      setAnswers(initialAnswers);
+    }
+  }, [session]);
+
+  // Render current answer for a question
+  const getCurrentAnswer = (questionId: string): Answer | undefined => {
+    return answers.find((a) => a.questionId === questionId);
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -185,8 +209,14 @@ export default function TerminalV2SurveyPage() {
 
   const handleResetSurvey = () => {
     setCurrentQuestionIndex(0);
-    setAnswers({});
-    setComments({});
+    if (session?.questions) {
+      setAnswers(session.questions.map((q) => ({
+        questionId: q.id,
+        rating: null as number | null,
+        selectedOptions: [] as string[],
+        comment: '',
+      })));
+    }
     setShowRespondentDataScreen(false);
     setRespondentName('');
     setRespondentPhone('');
@@ -194,7 +224,6 @@ export default function TerminalV2SurveyPage() {
     setSavedResponseId(null);
     setSurveyCompleted(false);
     setRemainingTime(60);
-    // Notificação removida para não incomodar o usuário
   };
 
   // Função para verificar se deve mostrar o botão de avançar
@@ -211,8 +240,27 @@ export default function TerminalV2SurveyPage() {
 
   const handleAnswer = (questionId: string, value: any) => {
     console.log('handleAnswer called:', { questionId, value, type: typeof value });
-    setAnswers((prev) => ({ ...prev, [questionId]: value }));
     
+    let newAnswers: Answer[];
+    
+    if (typeof value === 'number') {
+      // Rating based answers (SMILE, NPS, SCALE)
+      newAnswers = answers.map((a) =>
+        a.questionId === questionId ? { ...a, rating: value } : a
+      );
+    } else if (Array.isArray(value)) {
+      // Selected options (SINGLE_CHOICE, MULTIPLE_CHOICE, EMPLOYEE_RATING)
+      newAnswers = answers.map((a) =>
+        a.questionId === questionId ? { ...a, selectedOptions: value } : a
+      );
+    } else {
+      // Text input
+      newAnswers = answers.map((a) =>
+        a.questionId === questionId ? { ...a, comment: value } : a
+      );
+    }
+    
+    setAnswers(newAnswers);
     // Verificar se deve avançar automaticamente
     if (session) {
       const currentQuestion = session.questions[currentQuestionIndex];
@@ -234,21 +282,25 @@ export default function TerminalV2SurveyPage() {
   };
 
   const handleComment = (questionId: string, comment: string) => {
-    setComments((prev) => ({ ...prev, [questionId]: comment }));
+    setAnswers((prev) =>
+      prev.map((a) => (a.questionId === questionId ? { ...a, comment } : a))
+    );
   };
 
   // Função auxiliar para verificar se uma pergunta foi respondida
   const isQuestionAnswered = (question: Question): boolean => {
-    const currentAnswer = answers[question.id];
+    const currentAnswer = answers.find((a) => a.questionId === question.id);
+    
+    if (!currentAnswer) return false;
     
     if (question.type === 'SMILE' || question.type === 'SIMPLE_SMILE' || 
         question.type === 'NPS' || question.type === 'SCALE') {
-      return currentAnswer !== undefined && currentAnswer !== null;
+      return currentAnswer.rating !== null && currentAnswer.rating !== undefined;
     } else if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE' || 
                question.type === 'EMPLOYEE_RATING') {
-      return Array.isArray(currentAnswer) && currentAnswer.length > 0;
+      return Array.isArray(currentAnswer.selectedOptions) && currentAnswer.selectedOptions.length > 0;
     } else if (question.type === 'TEXT_INPUT') {
-      return typeof currentAnswer === 'string' && currentAnswer.trim() !== '';
+      return typeof currentAnswer.comment === 'string' && currentAnswer.comment.trim() !== '';
     }
     
     return false;
@@ -293,32 +345,17 @@ export default function TerminalV2SurveyPage() {
     console.log('saveSurveyAnswers - answers state AFTER DELAY:', JSON.stringify(answers));
     
     try {
-      // Formatar respostas no formato correto para a API
-      const formattedAnswers = session.questions.map((q) => {
-        const value = answers[q.id];
-        const comment = comments[q.id];
-
-        console.log(`Question ${q.id} (${q.type}): value =`, value, 'typeof:', typeof value);
-
-        // Estrutura padrão de resposta
-        const answer: any = {
-          questionId: q.id,
-          rating: null,
-          selectedOptions: [],
-          comment: comment || null,
+      // Usar as answers diretamente (já estão no formato correto)
+      const formattedAnswers = answers.map((a) => {
+        const question = session.questions.find((q) => q.id === a.questionId);
+        console.log(`Question ${a.questionId} (${question?.type}): rating =`, a.rating);
+        
+        return {
+          questionId: a.questionId,
+          rating: a.rating,
+          selectedOptions: a.selectedOptions,
+          comment: a.comment || null,
         };
-
-        // Preencher rating ou selectedOptions baseado no tipo de pergunta
-        if (q.type === 'SMILE' || q.type === 'SIMPLE_SMILE' || q.type === 'NPS' || q.type === 'SCALE') {
-          answer.rating = value !== undefined && value !== null ? Number(value) : null;
-        } else if (q.type === 'SINGLE_CHOICE' || q.type === 'MULTIPLE_CHOICE' || q.type === 'EMPLOYEE_RATING') {
-          // value já é um array de IDs
-          answer.selectedOptions = value || [];
-        } else if (q.type === 'TEXT_INPUT') {
-          answer.comment = value || '';
-        }
-
-        return answer;
       });
 
       const response = await fetch('/api/responses', {
@@ -515,7 +552,7 @@ export default function TerminalV2SurveyPage() {
     if (!session) return null;
 
     const question = session.questions[currentQuestionIndex];
-    const currentAnswer = answers[question.id];
+    const currentAnswer = answers.find((a) => a.questionId === question.id);
 
     switch (question.type) {
       case 'SMILE':
@@ -539,7 +576,7 @@ export default function TerminalV2SurveyPage() {
                     flex flex-col items-center justify-center p-3 sm:p-4 lg:p-6 border-2 transition-all
                     hover:scale-105 active:scale-95
                     ${
-                      currentAnswer === option.value
+                      currentAnswer?.rating === option.value
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 scale-105'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                     }
@@ -578,7 +615,7 @@ export default function TerminalV2SurveyPage() {
                     flex flex-col items-center justify-center p-3 sm:p-4 lg:p-6 border-2 transition-all
                     hover:scale-105 active:scale-95
                     ${
-                      currentAnswer === option.value
+                      currentAnswer?.rating === option.value
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 scale-105'
                         : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                     }
@@ -616,7 +653,7 @@ export default function TerminalV2SurveyPage() {
                       aspect-square flex items-center justify-center transition-all
                       text-base sm:text-lg md:text-xl font-bold text-white hover:scale-105 active:scale-95
                       ${
-                        currentAnswer === num
+                        currentAnswer?.rating === num
                           ? 'ring-2 sm:ring-4 ring-blue-500 scale-105'
                           : ''
                       }
@@ -651,7 +688,7 @@ export default function TerminalV2SurveyPage() {
                     aspect-square w-16 h-16 sm:w-20 sm:h-20 flex items-center justify-center border-2 transition-all
                     text-xl sm:text-2xl font-bold hover:scale-105 active:scale-95
                     ${
-                      currentAnswer === num
+                      currentAnswer?.rating === num
                         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 scale-105'
                         : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600'
                     }
@@ -674,7 +711,7 @@ export default function TerminalV2SurveyPage() {
         return (
           <div className="space-y-3">
             {question.options?.map((option) => {
-              const isSelected = currentAnswer && currentAnswer.includes(option.id);
+              const isSelected = currentAnswer?.selectedOptions?.includes(option.id) ?? false;
               const customColor = option.color || '#3b82f6';
               return (
                 <button
@@ -707,11 +744,11 @@ export default function TerminalV2SurveyPage() {
         );
 
       case 'MULTIPLE_CHOICE':
-        const selectedOptions = currentAnswer || [];
+        const selectedOptions = currentAnswer?.selectedOptions || [];
         return (
           <div className="space-y-3">
             {question.options?.map((option) => {
-              const isSelected = selectedOptions.includes(option.id);
+              const isSelected = (selectedOptions as string[]).includes(option.id);
               const customColor = option.color || '#3b82f6';
               return (
                 <button
@@ -762,7 +799,7 @@ export default function TerminalV2SurveyPage() {
         return (
           <div className="space-y-4">
             <Textarea
-              value={currentAnswer || ''}
+              value={currentAnswer?.comment || ''}
               onChange={(e) => handleAnswer(question.id, e.target.value)}
               placeholder="Digite sua resposta aqui..."
               className="min-h-[200px] text-lg resize-none"
@@ -770,7 +807,7 @@ export default function TerminalV2SurveyPage() {
               maxLength={1000}
             />
             <div className="text-sm text-gray-400 text-right">
-              {(currentAnswer || '').length} / 1000 caracteres
+              {(currentAnswer?.comment || '').length} / 1000 caracteres
             </div>
           </div>
         );
@@ -780,7 +817,7 @@ export default function TerminalV2SurveyPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {question.options?.map((option) => {
-                const isSelected = currentAnswer && currentAnswer.includes(option.id);
+              const isSelected = currentAnswer?.selectedOptions?.includes(option.id) ?? false;
                 return (
                   <button
                     key={option.id}
@@ -900,7 +937,7 @@ export default function TerminalV2SurveyPage() {
                     <div className="space-y-2">
                       <Label className="text-base">Comentário (opcional)</Label>
                       <Textarea
-                        value={comments[currentQuestion.id] || ''}
+                        value={getCurrentAnswer(currentQuestion.id)?.comment || ''}
                         onChange={(e) => handleComment(currentQuestion.id, e.target.value)}
                         placeholder="Deixe um comentário adicional..."
                         className="resize-none"
