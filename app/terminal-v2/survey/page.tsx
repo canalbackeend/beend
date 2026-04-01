@@ -34,6 +34,20 @@ interface Question {
   scaleMaxLabel?: string;
 }
 
+interface Question {
+  id: string;
+  text: string;
+  type: string;
+  order: number;
+  isRequired: boolean;
+  allowOptionalComment: boolean;
+  options?: { id: string; text: string; color?: string; imageUrl?: string }[];
+  scaleMin?: number;
+  scaleMax?: number;
+  scaleMinLabel?: string;
+  scaleMaxLabel?: string;
+}
+
 interface TerminalSession {
   terminalId: string;
   terminalName: string;
@@ -283,13 +297,19 @@ export default function TerminalV2SurveyPage() {
     setLoading(true);
     console.log('saveSurveyAnswers - answers state:', JSON.stringify(answers));
     console.log('saveSurveyAnswers - currentQuestionIndex:', currentQuestionIndex);
+    
+    // Delay to ensure state is updated
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    console.log('saveSurveyAnswers - answers state AFTER DELAY:', JSON.stringify(answers));
+    
     try {
       // Formatar respostas no formato correto para a API
       const formattedAnswers = session.questions.map((q) => {
         const value = answers[q.id];
         const comment = comments[q.id];
 
-        console.log(`Question ${q.id} (${q.type}): value =`, value);
+        console.log(`Question ${q.id} (${q.type}): value =`, value, 'typeof:', typeof value);
 
         // Estrutura padrão de resposta
         const answer: any = {
