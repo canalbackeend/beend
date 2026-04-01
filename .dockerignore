@@ -1,0 +1,14 @@
+# TypeScript
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Next.js
+.next/
+out/
+dist/
+
+# Dependencies
+node_modules/
+
+# Build cache
+.cache/
