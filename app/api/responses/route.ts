@@ -9,8 +9,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { campaignId, respondentName, respondentPhone, respondentEmail, answers, terminalId } = body;
 
-    if (!campaignId || !answers || !Array.isArray(answers) || answers.length === 0) {
-      return NextResponse.json({ error: 'Dados inválidos' }, { status: 400 });
+    // Validação básica
+    if (!campaignId || typeof campaignId !== 'string') {
+      return NextResponse.json({ error: 'ID da campanha é obrigatório' }, { status: 400 });
+    }
+    
+    if (!answers || !Array.isArray(answers) || answers.length === 0) {
+      return NextResponse.json({ error: 'Respostas são obrigatórias' }, { status: 400 });
+    }
+
+    // Sanitização de dados de contato
+    const sanitizedName = respondentName?.trim().slice(0, 255) || null;
+    const sanitizedPhone = respondentPhone?.replace(/\D/g, '').slice(0, 11) || null;
+    const sanitizedEmail = respondentEmail?.trim().toLowerCase().slice(0, 255) || null;
+
+    // Validar email se fornecido
+    if (sanitizedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizedEmail)) {
+      return NextResponse.json({ error: 'Email inválido' }, { status: 400 });
     }
 
     // Verificar se a campanha existe e está ativa
@@ -27,7 +42,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Se terminalId foi fornecido, verificar se o terminal existe e está ativo
-    if (terminalId) {
+    if (terminalId && typeof terminalId === 'string') {
       const terminal = await prisma.terminal.findUnique({
         where: { id: terminalId },
       });
@@ -71,16 +86,16 @@ export async function POST(request: NextRequest) {
       data: {
         campaignId,
         terminalId: terminalId || null,
-        respondentName: respondentName || null,
-        respondentPhone: respondentPhone || null,
-        respondentEmail: respondentEmail || null,
+        respondentName: sanitizedName,
+        respondentPhone: sanitizedPhone,
+        respondentEmail: sanitizedEmail,
         answers: {
           create: answers.map((answer: any) => ({
             questionId: answer.questionId,
-            rating: answer.rating ?? null,
-            selectedOptions: answer.selectedOptions || [],
-            comment: answer.comment || null,
-            selectedEmployeeId: selectedEmployeeId, // Salvar o colaborador selecionado em todas as respostas
+            rating: typeof answer.rating === 'number' ? answer.rating : null,
+            selectedOptions: Array.isArray(answer.selectedOptions) ? answer.selectedOptions : [],
+            comment: typeof answer.comment === 'string' ? answer.comment.slice(0, 1000) : null,
+            selectedEmployeeId: selectedEmployeeId,
           })),
         },
       },

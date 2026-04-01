@@ -65,7 +65,7 @@ export default function TerminalV2SurveyPage() {
   const [mounted, setMounted] = useState(false);
   const [answers, setAnswers] = useState<Answer[]>([]);
   const [loading, setLoading] = useState(false);
-  const [remainingTime, setRemainingTime] = useState(60);
+  const [remainingTime, setRemainingTime] = useState(120);
   const [logoutClicks, setLogoutClicks] = useState(0);
   const [showRespondentDataScreen, setShowRespondentDataScreen] = useState(false);
   const [respondentName, setRespondentName] = useState('');
@@ -158,7 +158,7 @@ export default function TerminalV2SurveyPage() {
       setRemainingTime((prev) => {
         if (prev <= 1) {
           handleResetSurvey();
-          return 60;
+          return 120;
         }
         return prev - 1;
       });
@@ -168,7 +168,7 @@ export default function TerminalV2SurveyPage() {
   }, []);
 
   const handleScreenTouch = () => {
-    setRemainingTime(60);
+    setRemainingTime(120);
   };
 
   const formatTime = (seconds: number) => {
