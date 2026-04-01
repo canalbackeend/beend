@@ -235,17 +235,70 @@ export default function TerminalV2SurveyPage() {
       const currentQuestion = session.questions[currentQuestionIndex];
       if (currentQuestion && !shouldShowAdvanceButton(currentQuestion)) {
         setTimeout(() => {
-          setCurrentQuestionIndex((prev) => {
-            if (prev !== currentIdx) return prev;
-            if (prev < session.questions.length - 1) {
-              return prev + 1;
-            } else {
-              saveSurveyAnswers();
-              return prev;
-            }
+          setAnswers((prevAnswers) => {
+            setCurrentQuestionIndex((prevIdx) => {
+              if (prevIdx !== currentIdx) return prevIdx;
+              if (prevIdx < session.questions.length - 1) {
+                return prevIdx + 1;
+              } else {
+                const formattedAnswers = session.questions.map((q) => {
+                  const ans = prevAnswers.find((a) => a.questionId === q.id);
+                  return {
+                    questionId: q.id,
+                    rating: ans?.rating ?? null,
+                    selectedOptions: ans?.selectedOptions ?? [],
+                    comment: ans?.comment ?? null,
+                  };
+                });
+                submitAnswers(formattedAnswers);
+                return prevIdx;
+              }
+            });
+            return prevAnswers;
           });
         }, 300);
       }
+    }
+  };
+
+  const submitAnswers = async (formattedAnswers: any[]) => {
+    if (!session) return;
+
+    setLoading(true);
+    
+    try {
+      console.log('Sending answers:', JSON.stringify(formattedAnswers));
+
+      const response = await fetch('/api/responses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignId: session.campaignId,
+          terminalId: session.terminalId,
+          answers: formattedAnswers,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erro ao enviar respostas');
+      }
+
+      const data = await response.json();
+      setSavedResponseId(data.id);
+      setSurveyCompleted(true);
+
+      const shouldCollectData = session.collectName || session.collectPhone || session.collectEmail;
+      if (shouldCollectData) {
+        setShowRespondentDataScreen(true);
+      } else {
+        router.push('/terminal-v2/thankyou');
+      }
+    } catch (error) {
+      console.error('Save survey error:', error);
+      toast.error('Erro ao enviar respostas. Tente novamente.');
+    } finally {
+      setLoading(false);
     }
   };
 
