@@ -29,6 +29,8 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
     const viewAsUserId = searchParams.get('viewAsUser');
     const terminalId = searchParams.get('terminalId');
 
+    console.log('Analytics API called with:', { terminalId, daysParam, startDate, endDate });
+
     // Buscar campanha com perguntas e opções
     const campaign = await prisma.campaign.findUnique({
       where: { id: params.campaignId },

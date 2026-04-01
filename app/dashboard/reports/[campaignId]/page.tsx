@@ -206,6 +206,13 @@ export default function ReportPage() {
         params.append('days', dateFilter);
       }
       
+      console.log('Fetching analytics with params:', { 
+        terminalId: selectedTerminalId, 
+        dateFilter, 
+        isCustomRange,
+        customDateRange 
+      });
+      
       if (selectedTerminalId && selectedTerminalId !== 'all') {
         params.append('terminalId', selectedTerminalId);
       }
