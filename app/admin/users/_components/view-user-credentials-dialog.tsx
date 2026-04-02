@@ -78,7 +78,7 @@ export function ViewUserCredentialsDialog({
       })
       .join('\n\n');
 
-    return `Olá ${userName}, segue os acessos para teste da plataforma:\n\nSegue os acessos:\n\nEndereço da plataforma: https://totem.beend.tech\nLogin: ${credentials.user.email}\nSenha(Provisória): 123456\n\n${credentials.terminals.length > 0 ? `Acesso dos terminais:\n\n${terminalsList}\n\n` : ''}Link para download do APK de instalação do tablet:\nhttps://totem.beend.tech/beend.apk`;
+    return `Olá ${userName}, segue os acessos para teste da plataforma:\n\nSegue os acessos:\n\nEndereço da plataforma: https://sistema.beend.tech\nLogin: ${credentials.user.email}\nSenha(Provisória): 123456\n\n${credentials.terminals.length > 0 ? `Acesso dos terminais:\n\n${terminalsList}\n\n` : ''}Link para download do APK de instalação do tablet:\nhttps://sistema.beend.tech/beend.apk`;
   };
 
   const handleCopy = async () => {
@@ -123,7 +123,7 @@ export function ViewUserCredentialsDialog({
                 <div className="bg-background rounded-md p-4 space-y-2 border">
                   <p className="text-sm">
                     <span className="font-medium">Endereço da plataforma:</span>{' '}
-                    <span className="text-blue-600 dark:text-blue-400">https://totem.beend.tech</span>
+                    <span className="text-blue-600 dark:text-blue-400">https://sistema.beend.tech</span>
                   </p>
                   <p className="text-sm">
                     <span className="font-medium">Login:</span>{' '}
@@ -166,7 +166,7 @@ export function ViewUserCredentialsDialog({
                 <div className="bg-background rounded-md p-4 space-y-2 border mt-4">
                   <p className="text-sm font-medium">Link para download do APK de instalação do tablet:</p>
                   <p className="text-sm text-blue-600 dark:text-blue-400 break-all">
-                    https://totem.beend.tech/beend.apk
+                    https://sistema.beend.tech/beend.apk
                   </p>
                 </div>
               </div>

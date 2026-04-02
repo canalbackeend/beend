@@ -137,7 +137,7 @@ export default function LandingPage() {
                   Login
                 </Button>
               </Link>
-              <Link href="https://totem.beend.tech" target="_blank">
+              <Link href="https://sistema.beend.tech" target="_blank">
                 <Button size="sm" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
                   Acessar Sistema
                 </Button>
@@ -172,7 +172,7 @@ export default function LandingPage() {
                   Login
                 </Button>
               </Link>
-              <Link href="https://totem.beend.tech" target="_blank" onClick={() => setMobileMenuOpen(false)}>
+              <Link href="https://sistema.beend.tech" target="_blank" onClick={() => setMobileMenuOpen(false)}>
                 <Button size="sm" className="w-full bg-gradient-to-r from-blue-600 to-purple-600">
                   Acessar Sistema
                 </Button>
@@ -213,7 +213,7 @@ export default function LandingPage() {
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="https://totem.beend.tech" target="_blank">
+              <Link href="https://sistema.beend.tech" target="_blank">
                 <Button size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-lg px-8">
                   Começar Agora
                   <ChevronRight className="ml-2 h-5 w-5" />
@@ -452,7 +452,7 @@ export default function LandingPage() {
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
             Comece agora mesmo a coletar feedback inteligente com a melhor plataforma do mercado
           </p>
-          <Link href="https://totem.beend.tech" target="_blank">
+          <Link href="https://sistema.beend.tech" target="_blank">
             <Button size="lg" variant="secondary" className="text-lg px-8">
               Acessar Sistema
               <ChevronRight className="ml-2 h-5 w-5" />
