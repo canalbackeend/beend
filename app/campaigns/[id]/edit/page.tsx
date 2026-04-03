@@ -580,8 +580,12 @@ export default function EditCampaignPage() {
 
   // Warning modal states
   const [showDataWarning, setShowDataWarning] = useState(false);
+  const [showResetWarning, setShowResetWarning] = useState(false);
   const [responseCount, setResponseCount] = useState(0);
   const [hasAcknowledgedWarning, setHasAcknowledgedWarning] = useState(false);
+  const [pendingSave, setPendingSave] = useState(false);
+  const [destructiveChanges, setDestructiveChanges] = useState<string[]>([]);
+  const [originalQuestions, setOriginalQuestions] = useState<Question[]>([]);
 
   // Configuração do dnd-kit
   const sensors = useSensors(
@@ -618,7 +622,7 @@ export default function EditCampaignPage() {
         if (data.questions && Array.isArray(data.questions)) {
           // Sort questions by order field
           const sortedQuestions = [...data.questions].sort((a, b) => (a.order || 0) - (b.order || 0));
-          setQuestions(sortedQuestions.map((q: any) => ({
+          const mappedQuestions = sortedQuestions.map((q: any) => ({
             id: q.id,
             text: q.text || '',
             type: q.type || 'SMILE',
@@ -630,7 +634,9 @@ export default function EditCampaignPage() {
             scaleMinLabel: q.scaleMinLabel,
             scaleMaxLabel: q.scaleMaxLabel,
             order: q.order,
-          })));
+          }));
+          setQuestions(mappedQuestions);
+          setOriginalQuestions(mappedQuestions);
         }
 
         // Check for existing responses and show warning
@@ -783,7 +789,39 @@ export default function EditCampaignPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Função para detectar mudanças destrutivas (que requerem reset)
+  const detectDestructiveChanges = (originalQuestions: Question[], newQuestions: Question[]): string[] => {
+    const changes: string[] = [];
+    
+    newQuestions.forEach((newQ, newIndex) => {
+      const originalQ = originalQuestions[newIndex];
+      
+      if (!originalQ) {
+        // Nova pergunta - OK
+        return;
+      }
+      
+      // Verificar mudança de tipo
+      if (originalQ.type !== newQ.type) {
+        changes.push(`Tipo da pergunta "${newQ.text.substring(0, 30)}..." alterado de ${originalQ.type} para ${newQ.type}`);
+      }
+      
+      // Verificar mudança de obrigatório
+      if (originalQ.isRequired !== newQ.isRequired) {
+        changes.push(`"${newQ.text.substring(0, 30)}..." teve alteração obrigatória/opcional`);
+      }
+      
+      // Verificar perguntas removidas (se newQ tem ID mas não está mais)
+      if (originalQ.id && !newQuestions.find(q => q.id === originalQ.id)) {
+        changes.push(`Pergunta "${originalQ.text.substring(0, 30)}..." foi removida`);
+      }
+    });
+    
+    return changes;
+  };
+
+  // Função para verificar se pode salvar diretamente ou precisa de confirmação
+  const checkAndSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -807,8 +845,31 @@ export default function EditCampaignPage() {
       return;
     }
 
-    setSaving(true);
+    // Se não tem respostas, salvar normalmente
+    if (responseCount === 0) {
+      setSaving(true);
+      await performSave();
+      return;
+    }
 
+    // Verificar mudanças destrutivas
+    const destructiveChanges = detectDestructiveChanges(originalQuestions, questions);
+    
+    if (destructiveChanges.length > 0) {
+      // Há mudanças destrutivas - mostrar aviso
+      setDestructiveChanges(destructiveChanges);
+      setShowResetWarning(true);
+    } else {
+      // Mudanças seguras - salvar normalmente
+      setSaving(true);
+      await performSave();
+    }
+  };
+
+  // Função que executa o save
+  const performSave = async () => {
+    const validQuestions = questions.filter((q) => q.text.trim());
+    
     try {
       // Include order field based on array index after drag-drop reordering
       const response = await fetch(`/api/campaigns/${campaignId}`, {
@@ -852,6 +913,32 @@ export default function EditCampaignPage() {
       setError(err.message || 'Erro ao atualizar campanha');
       toast.error('Erro ao atualizar campanha');
     } finally {
+      setSaving(false);
+      setShowResetWarning(false);
+    }
+  };
+
+  // Função para salvar com reset
+  const handleSaveWithReset = async () => {
+    setSaving(true);
+    setShowResetWarning(false);
+
+    try {
+      // Primeiro, resetar as respostas
+      const deleteResponse = await fetch(`/api/campaigns/${campaignId}/responses`, {
+        method: 'DELETE',
+      });
+
+      if (!deleteResponse.ok) {
+        throw new Error('Erro ao resetar respostas');
+      }
+
+      // Agora salvar a campanha
+      await performSave();
+    } catch (err: any) {
+      console.error('Error resetting campaign:', err);
+      setError(err.message || 'Erro ao resetar dados da campanha');
+      toast.error('Erro ao resetar dados da campanha');
       setSaving(false);
     }
   };
@@ -907,7 +994,7 @@ export default function EditCampaignPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={checkAndSave}>
               <Card className="shadow-xl">
                 <CardHeader>
                   <CardTitle className="text-2xl">Informações da Campanha</CardTitle>
@@ -1118,6 +1205,59 @@ export default function EditCampaignPage() {
             >
               Entendi, Continuar Edição
             </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Modal de Confirmação para Mudanças que Requerem Reset */}
+      <AlertDialog open={showResetWarning} onOpenChange={setShowResetWarning}>
+        <AlertDialogContent className="max-w-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertTriangle className="w-5 h-5" />
+              Alterações que requerem Reset
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Esta campanha possui <strong>{responseCount} resposta(s)</strong>. As seguintes alterações são consideradas <strong>destructivas</strong> e exigirão o <strong>reset de todos os dados</strong>:
+              </p>
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3 max-h-40 overflow-y-auto">
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  {destructiveChanges.map((change, index) => (
+                    <li key={index} className="text-red-700 dark:text-red-300">{change}</li>
+                  ))}
+                </ul>
+              </div>
+              <p className="text-red-600 dark:text-red-400 font-medium">
+                ⚠️ Todos os dados serán excluídos permanentemente!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                edições como corrigir textos, alterar imagens ou adicionar/remover opções são <strong>permitidas sem perda de dados</strong>.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel disabled={saving}>
+              Cancelar
+            </AlertDialogCancel>
+            <Button
+              type="button"
+              onClick={handleSaveWithReset}
+              disabled={saving}
+              className="gap-2 bg-red-600 hover:bg-red-700 text-white"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Resetando...
+                </>
+              ) : (
+                <>
+                  <AlertTriangle className="w-4 h-4" />
+                  Sim, Resetar Dados
+                </>
+              )}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
