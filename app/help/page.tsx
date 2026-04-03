@@ -389,7 +389,7 @@ export default function HelpPage() {
                           O sistema gera automaticamente:
                         </p>
                         <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
-                          <li><strong>E-mail:</strong> term[número]@sistema.beend.tech</li>
+                          <li><strong>E-mail:</strong> term[número]@beend.app</li>
                           <li><strong>Senha padrão:</strong> term123</li>
                           <li>Você pode alterar a senha a qualquer momento</li>
                         </ul>
@@ -406,7 +406,7 @@ export default function HelpPage() {
                           Para instalar em um tablet Android:
                         </p>
                         <ol className="text-sm text-muted-foreground space-y-1 ml-4 list-decimal">
-                          <li>Baixe o APK do link: <code className="bg-muted px-1 py-0.5 rounded">https://sistema.beend.tech/beend.apk</code></li>
+                          <li>Baixe o APK do link: <code className="bg-muted px-1 py-0.5 rounded">https://sistema.beend.tech/BeendSurvey.apk</code></li>
                           <li>Instale o aplicativo no tablet</li>
                           <li>Faça login com as credenciais do terminal</li>
                           <li>O terminal ficará em modo quiosque exibindo a pesquisa</li>
