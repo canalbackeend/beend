@@ -814,6 +814,11 @@ export default function EditCampaignPage() {
       if (originalQ.type !== newQ.type) {
         changes.push(`Tipo da pergunta "${newQ.text.substring(0, 30)}..." alterado de ${originalQ.type} para ${newQ.type}`);
       }
+
+      // Verificar mudança de obrigatório
+      if (originalQ.isRequired !== newQ.isRequired) {
+        changes.push(`Obrigatoriedade da pergunta "${newQ.text.substring(0, 30)}..." alterada de ${originalQ.isRequired ? 'obrigatória' : 'opcional'} para ${newQ.isRequired ? 'obrigatória' : 'opcional'}`);
+      }
     });
     
     return changes;
@@ -907,7 +912,9 @@ export default function EditCampaignPage() {
       if (!response.ok) {
         // Se a API diz que precisa de reset, mostrar modal
         if (response.status === 400 && errorData?.error?.includes('requer reset')) {
-          setDestructiveChanges([errorData.error]);
+          // Adicionar ao array de mudanças destrutivas (em vez de substituir)
+          const newChanges = [...destructiveChanges, errorData.error];
+          setDestructiveChanges(newChanges);
           setShowResetWarning(true);
           setSaving(false);
           return;
