@@ -83,7 +83,55 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     // Se houver perguntas, atualizar
     if (questions && Array.isArray(questions)) {
-      // Só deleta dados se explicitamente solicitado (mudanças destrutivas)
+      // Verificar se existem respostas
+      const responseCount = await prisma.response.count({
+        where: { campaignId: params.id },
+      });
+
+      // Se há respostas e não está marcado resetData, validar mudanças
+      if (responseCount > 0 && !resetData) {
+        const currentQuestions = await prisma.question.findMany({
+          where: { campaignId: params.id },
+          orderBy: { order: 'asc' },
+        });
+
+        const newQuestionIds = questions.filter((q: any) => q.id).map((q: any) => q.id);
+
+        // Verificar perguntas removidas
+        const removedQuestions = currentQuestions.filter(cq => !newQuestionIds.includes(cq.id));
+        if (removedQuestions.length > 0) {
+          return NextResponse.json(
+            { error: `Você está tentando remover ${removedQuestions.length} pergunta(s). Isso requer reset dos dados. Por favor, salve novamente confirmando o reset.` },
+            { status: 400 }
+          );
+        }
+
+        // Verificar mudanças de tipo
+        for (const q of questions) {
+          if (!q.id) continue;
+          const originalQ = currentQuestions.find(cq => cq.id === q.id);
+          if (originalQ && originalQ.type !== q.type) {
+            return NextResponse.json(
+              { error: `Você está alterando o tipo da pergunta "${q.text.substring(0, 30)}..." de ${originalQ.type} para ${q.type}. Isso requer reset dos dados. Por favor, salve novamente confirmando o reset.` },
+              { status: 400 }
+            );
+          }
+        }
+
+        // Verificar mudanças de isRequired
+        for (const q of questions) {
+          if (!q.id) continue;
+          const originalQ = currentQuestions.find(cq => cq.id === q.id);
+          if (originalQ && originalQ.isRequired !== q.isRequired) {
+            return NextResponse.json(
+              { error: `Você está alterando a obrigatoriedade da pergunta "${q.text.substring(0, 30)}...". Isso requer reset dos dados. Por favor, salve novamente confirmando o reset.` },
+              { status: 400 }
+            );
+          }
+        }
+      }
+
+      // Agora proceed com update (safe or reset)
       if (resetData) {
         await prisma.response.deleteMany({
           where: { campaignId: params.id },
@@ -121,35 +169,18 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         }
       } else {
         // Atualização segura - mantém as respostas existentes
-        // Buscar perguntas atuais
-        const currentQuestions = await prisma.question.findMany({
-          where: { campaignId: params.id },
-          include: { options: true },
-        });
-
-        // IDs das perguntas novas e existentes
-        const newQuestionIds = questions.filter((q: any) => q.id).map((q: any) => q.id);
-        const currentQuestionIds = currentQuestions.map(q => q.id);
-
-        // Deletar perguntas que foram removidas na edição
-        const questionsToDelete = currentQuestions.filter(cq => !newQuestionIds.includes(cq.id));
-        for (const q of questionsToDelete) {
-          await prisma.question.delete({ where: { id: q.id } });
-        }
-
-        // Atualizar ou criar perguntas
+        // Apenas atualiza texto, ordem e opções. Não deleta perguntas existentes.
+        
+        // Atualizar perguntas existentes
         for (let i = 0; i < questions.length; i++) {
           const q = questions[i];
           
-          if (q.id && currentQuestionIds.includes(q.id)) {
+          if (q.id) {
             // Atualizar pergunta existente (mantém dados)
             await prisma.question.update({
               where: { id: q.id },
               data: {
                 text: q.text,
-                type: q.type,
-                isRequired: q.isRequired,
-                allowOptionalComment: q.allowOptionalComment,
                 order: q.order || i + 1,
                 scaleMin: q.scaleMin,
                 scaleMax: q.scaleMax,
@@ -177,7 +208,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
               });
             }
           } else {
-            // Criar nova pergunta
+            // Criar nova pergunta (pergunta nova sem ID)
             await prisma.question.create({
               data: {
                 campaignId: params.id,

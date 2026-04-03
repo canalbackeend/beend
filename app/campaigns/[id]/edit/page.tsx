@@ -902,8 +902,16 @@ export default function EditCampaignPage() {
         }),
       });
 
+      const errorData = await response.json().catch(() => null);
+
       if (!response.ok) {
-        const errorData = await response.json().catch(() => null);
+        // Se a API diz que precisa de reset, mostrar modal
+        if (response.status === 400 && errorData?.error?.includes('requer reset')) {
+          setDestructiveChanges([errorData.error]);
+          setShowResetWarning(true);
+          setSaving(false);
+          return;
+        }
         throw new Error(errorData?.error || 'Erro ao atualizar campanha');
       }
 
