@@ -65,7 +65,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     }
 
     const body = await request.json();
-    const { title, description, status, questions, lgpdText, collectName, collectPhone, collectEmail } = body;
+    const { title, description, status, questions, lgpdText, collectName, collectPhone, collectEmail, resetData } = body;
 
     // Atualizar campanha
     const updatedCampaign = await prisma.campaign.update({
@@ -83,42 +83,125 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 
     // Se houver perguntas, atualizar
     if (questions && Array.isArray(questions)) {
-      // Resetar todas as respostas da campanha para manter consistência
-      // (ao mudar perguntas, as respostas antigas não fazem mais sentido)
-      await prisma.response.deleteMany({
-        where: { campaignId: params.id },
-      });
-      
-      // Deletar perguntas antigas (cascade deleta as opções também)
-      await prisma.question.deleteMany({
-        where: { campaignId: params.id },
-      });
-
-      // Criar novas perguntas com opções
-      for (let i = 0; i < questions.length; i++) {
-        const q = questions[i];
-        await prisma.question.create({
-          data: {
-            campaignId: params.id,
-            text: q.text,
-            type: q.type || 'SMILE',
-            isRequired: q.isRequired !== undefined ? q.isRequired : true,
-            allowOptionalComment: q.allowOptionalComment !== undefined ? q.allowOptionalComment : false,
-            order: q.order || i + 1,
-            scaleMin: q.scaleMin,
-            scaleMax: q.scaleMax,
-            scaleMinLabel: q.scaleMinLabel,
-            scaleMaxLabel: q.scaleMaxLabel,
-            options: q.options && q.options.length > 0 ? {
-              create: q.options.map((opt: any, idx: number) => ({
-                text: opt.text,
-                color: opt.color || '#3b82f6',
-                imageUrl: opt.imageUrl,
-                order: opt.order ?? idx + 1,
-              })),
-            } : undefined,
-          },
+      // Só deleta dados se explicitamente solicitado (mudanças destrutivas)
+      if (resetData) {
+        await prisma.response.deleteMany({
+          where: { campaignId: params.id },
         });
+        
+        await prisma.question.deleteMany({
+          where: { campaignId: params.id },
+        });
+
+        // Criar novas perguntas com opções
+        for (let i = 0; i < questions.length; i++) {
+          const q = questions[i];
+          await prisma.question.create({
+            data: {
+              campaignId: params.id,
+              text: q.text,
+              type: q.type || 'SMILE',
+              isRequired: q.isRequired !== undefined ? q.isRequired : true,
+              allowOptionalComment: q.allowOptionalComment !== undefined ? q.allowOptionalComment : false,
+              order: q.order || i + 1,
+              scaleMin: q.scaleMin,
+              scaleMax: q.scaleMax,
+              scaleMinLabel: q.scaleMinLabel,
+              scaleMaxLabel: q.scaleMaxLabel,
+              options: q.options && q.options.length > 0 ? {
+                create: q.options.map((opt: any, idx: number) => ({
+                  text: opt.text,
+                  color: opt.color || '#3b82f6',
+                  imageUrl: opt.imageUrl,
+                  order: opt.order ?? idx + 1,
+                })),
+              } : undefined,
+            },
+          });
+        }
+      } else {
+        // Atualização segura - mantém as respostas existentes
+        // Buscar perguntas atuais
+        const currentQuestions = await prisma.question.findMany({
+          where: { campaignId: params.id },
+          include: { options: true },
+        });
+
+        // IDs das perguntas novas e existentes
+        const newQuestionIds = questions.filter((q: any) => q.id).map((q: any) => q.id);
+        const currentQuestionIds = currentQuestions.map(q => q.id);
+
+        // Deletar perguntas que foram removidas na edição
+        const questionsToDelete = currentQuestions.filter(cq => !newQuestionIds.includes(cq.id));
+        for (const q of questionsToDelete) {
+          await prisma.question.delete({ where: { id: q.id } });
+        }
+
+        // Atualizar ou criar perguntas
+        for (let i = 0; i < questions.length; i++) {
+          const q = questions[i];
+          
+          if (q.id && currentQuestionIds.includes(q.id)) {
+            // Atualizar pergunta existente (mantém dados)
+            await prisma.question.update({
+              where: { id: q.id },
+              data: {
+                text: q.text,
+                type: q.type,
+                isRequired: q.isRequired,
+                allowOptionalComment: q.allowOptionalComment,
+                order: q.order || i + 1,
+                scaleMin: q.scaleMin,
+                scaleMax: q.scaleMax,
+                scaleMinLabel: q.scaleMinLabel,
+                scaleMaxLabel: q.scaleMaxLabel,
+              },
+            });
+
+            // Atualizar opções (SINGLE_CHOICE, MULTIPLE_CHOICE, EMPLOYEE_RATING)
+            if (q.options && q.options.length > 0) {
+              // Deletar opções antigas
+              await prisma.questionOption.deleteMany({
+                where: { questionId: q.id },
+              });
+              
+              // Criar novas opções
+              await prisma.questionOption.createMany({
+                data: q.options.map((opt: any, idx: number) => ({
+                  questionId: q.id,
+                  text: opt.text,
+                  color: opt.color || '#3b82f6',
+                  imageUrl: opt.imageUrl,
+                  order: opt.order ?? idx + 1,
+                })),
+              });
+            }
+          } else {
+            // Criar nova pergunta
+            await prisma.question.create({
+              data: {
+                campaignId: params.id,
+                text: q.text,
+                type: q.type || 'SMILE',
+                isRequired: q.isRequired !== undefined ? q.isRequired : true,
+                allowOptionalComment: q.allowOptionalComment !== undefined ? q.allowOptionalComment : false,
+                order: q.order || i + 1,
+                scaleMin: q.scaleMin,
+                scaleMax: q.scaleMax,
+                scaleMinLabel: q.scaleMinLabel,
+                scaleMaxLabel: q.scaleMaxLabel,
+                options: q.options && q.options.length > 0 ? {
+                  create: q.options.map((opt: any, idx: number) => ({
+                    text: opt.text,
+                    color: opt.color || '#3b82f6',
+                    imageUrl: opt.imageUrl,
+                    order: opt.order ?? idx + 1,
+                  })),
+                } : undefined,
+              },
+            });
+          }
+        }
       }
     }
 

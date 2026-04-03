@@ -639,12 +639,10 @@ export default function EditCampaignPage() {
           setOriginalQuestions(mappedQuestions);
         }
 
-        // Check for existing responses and show warning
+        // Check for existing responses (used for destructive change detection)
         const count = data._count?.responses || 0;
         setResponseCount(count);
-        if (count > 0) {
-          setShowDataWarning(true);
-        }
+        // Não mostrar mais o modal automático - agora só mostra quando salvar com mudanças destrutivas
       } catch (error) {
         console.error('Error fetching campaign:', error);
         toast.error('Erro ao carregar campanha');
@@ -849,7 +847,7 @@ export default function EditCampaignPage() {
     // Se não tem respostas, salvar normalmente
     if (responseCount === 0) {
       setSaving(true);
-      await performSave();
+      await performSave(false);
       return;
     }
 
@@ -863,14 +861,14 @@ export default function EditCampaignPage() {
       setDestructiveChanges(destructiveChanges);
       setShowResetWarning(true);
     } else {
-      // Mudanças seguras - salvar normalmente
+      // Mudanças seguras - salvar normalmente sem deletar dados
       setSaving(true);
-      await performSave();
+      await performSave(false);
     }
   };
 
   // Função que executa o save
-  const performSave = async () => {
+  const performSave = async (shouldResetData: boolean = false) => {
     const validQuestions = questions.filter((q) => q.text.trim());
     
     try {
@@ -885,6 +883,7 @@ export default function EditCampaignPage() {
           collectName,
           collectPhone,
           collectEmail,
+          resetData: shouldResetData,
           questions: validQuestions.map((q, index) => ({
             id: q.id,
             text: q.text,
@@ -926,24 +925,8 @@ export default function EditCampaignPage() {
     setSaving(true);
     setShowResetWarning(false);
 
-    try {
-      // Primeiro, resetar as respostas
-      const deleteResponse = await fetch(`/api/campaigns/${campaignId}/responses`, {
-        method: 'DELETE',
-      });
-
-      if (!deleteResponse.ok) {
-        throw new Error('Erro ao resetar respostas');
-      }
-
-      // Agora salvar a campanha
-      await performSave();
-    } catch (err: any) {
-      console.error('Error resetting campaign:', err);
-      setError(err.message || 'Erro ao resetar dados da campanha');
-      toast.error('Erro ao resetar dados da campanha');
-      setSaving(false);
-    }
+    // O API agora faz tudo: deleta respostas + recria perguntas
+    await performSave(true);
   };
 
   if (fetchingData) {
