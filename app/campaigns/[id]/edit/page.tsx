@@ -791,29 +791,30 @@ export default function EditCampaignPage() {
 
   // Função para detectar mudanças destrutivas (que requerem reset)
   const detectDestructiveChanges = (originalQuestions: Question[], newQuestions: Question[]): string[] => {
+    if (originalQuestions.length === 0 || newQuestions.length === 0) {
+      return [];
+    }
+
     const changes: string[] = [];
     
-    newQuestions.forEach((newQ, newIndex) => {
-      const originalQ = originalQuestions[newIndex];
-      
-      if (!originalQ) {
-        // Nova pergunta - OK
-        return;
+    // Verificar perguntas removidas (perguntas que existiam e agora não existem mais)
+    originalQuestions.forEach((origQ) => {
+      const stillExists = newQuestions.find(q => q.id === origQ.id);
+      if (!stillExists) {
+        changes.push(`Pergunta "${origQ.text.substring(0, 30)}..." foi removida`);
       }
+    });
+    
+    // Verificar mudança de tipo (comparando por ID para manter a correspondência)
+    newQuestions.forEach((newQ) => {
+      if (!newQ.id) return; // Nova pergunta não tem ID ainda
+      
+      const originalQ = originalQuestions.find(q => q.id === newQ.id);
+      if (!originalQ) return;
       
       // Verificar mudança de tipo
       if (originalQ.type !== newQ.type) {
         changes.push(`Tipo da pergunta "${newQ.text.substring(0, 30)}..." alterado de ${originalQ.type} para ${newQ.type}`);
-      }
-      
-      // Verificar mudança de obrigatório
-      if (originalQ.isRequired !== newQ.isRequired) {
-        changes.push(`"${newQ.text.substring(0, 30)}..." teve alteração obrigatória/opcional`);
-      }
-      
-      // Verificar perguntas removidas (se newQ tem ID mas não está mais)
-      if (originalQ.id && !newQuestions.find(q => q.id === originalQ.id)) {
-        changes.push(`Pergunta "${originalQ.text.substring(0, 30)}..." foi removida`);
       }
     });
     
@@ -852,8 +853,10 @@ export default function EditCampaignPage() {
       return;
     }
 
-    // Verificar mudanças destrutivas
-    const destructiveChanges = detectDestructiveChanges(originalQuestions, questions);
+    // Verificar mudanças destrutivas (só se temos as perguntas originais)
+    const destructiveChanges = originalQuestions.length > 0 
+      ? detectDestructiveChanges(originalQuestions, questions)
+      : [];
     
     if (destructiveChanges.length > 0) {
       // Há mudanças destrutivas - mostrar aviso
