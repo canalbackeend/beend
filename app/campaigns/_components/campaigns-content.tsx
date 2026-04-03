@@ -5,10 +5,20 @@ import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Trash2, Edit, RotateCcw, Eye } from 'lucide-react';
+import { Plus, Trash2, Edit, RotateCcw, Eye, Loader2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { CheckCircle, XCircle } from 'lucide-react';
 import Link from 'next/link';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface Campaign {
   id: string;
@@ -31,6 +41,7 @@ export function CampaignsContent() {
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null);
   const [resetting, setResetting] = useState(false);
   const [viewingUserName, setViewingUserName] = useState<string>('');
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCampaigns();
@@ -43,7 +54,6 @@ export function CampaignsContent() {
       const data = await response.json();
       setCampaigns(data ?? []);
       
-      // Se estamos visualizando como outro usuário, buscar o nome dele
       if (viewAsUserId) {
         const userResponse = await fetch(`/api/users/profile?viewAsUser=${viewAsUserId}`);
         const userData = await userResponse.json();
@@ -68,6 +78,7 @@ export function CampaignsContent() {
   };
 
   const toggleStatus = async (campaign: Campaign) => {
+    setTogglingId(campaign.id);
     try {
       await fetch(`/api/campaigns/${campaign.id}`, {
         method: 'PUT',
@@ -76,9 +87,12 @@ export function CampaignsContent() {
           status: campaign.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
         }),
       });
+      toast.success(`Campanha ${campaign.status === 'ACTIVE' ? 'desativada' : 'ativada'} com sucesso!`);
       fetchCampaigns();
     } catch (error) {
       console.error('Error updating campaign:', error);
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -116,7 +130,7 @@ export function CampaignsContent() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="text-4xl mb-4">🔄</div>
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
           <p className="text-muted-foreground">Carregando campanhas...</p>
         </div>
       </div>
@@ -124,8 +138,7 @@ export function CampaignsContent() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Banner de visualização como outro usuário */}
+    <div className="space-y-6">
       {viewAsUserId && viewingUserName && (
         <Card className="border-blue-300 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-700">
           <CardContent className="py-4">
@@ -139,13 +152,14 @@ export function CampaignsContent() {
         </Card>
       )}
 
-      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             Campanhas
           </h1>
-          <p className="text-muted-foreground mt-2">Gerencie suas pesquisas de satisfação</p>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            Gerencie suas pesquisas de satisfação
+          </p>
         </div>
         <Link href="/campaigns/new">
           <Button size="lg" className="flex items-center gap-2">
@@ -155,82 +169,117 @@ export function CampaignsContent() {
         </Link>
       </div>
 
-      {/* Lista de campanhas */}
       {campaigns.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-96 space-y-4">
-          <div className="text-6xl"></div>
-          <h2 className="text-2xl font-bold">Nenhuma campanha criada</h2>
-          <p className="text-muted-foreground">Crie sua primeira campanha para começar</p>
-          <Link href="/campaigns/new">
-            <Button size="lg">Criar Primeira Campanha</Button>
-          </Link>
-        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center h-64 space-y-4">
+            <div className="text-6xl"></div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Nenhuma campanha criada</h2>
+            <p className="text-gray-600 dark:text-gray-400">Crie sua primeira campanha para começar</p>
+            <Link href="/campaigns/new">
+              <Button size="lg">Criar Primeira Campanha</Button>
+            </Link>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {campaigns?.map((campaign) => (
-            <Card key={campaign.id} className="hover:shadow-xl transition-all duration-300">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <CardTitle className="text-2xl">{campaign.title}</CardTitle>
-                      <Badge variant={campaign.status === 'ACTIVE' ? 'default' : 'secondary'}>
-                        {campaign.status === 'ACTIVE' ? 'Ativa' : 'Inativa'}
-                      </Badge>
-                    </div>
-                    <CardDescription className="text-base">{campaign.description || 'Sem descrição'}</CardDescription>
-                  </div>
-                  <div className="text-3xl"></div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-
-                  <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-3">
-                    <p className="text-sm text-muted-foreground">Respostas</p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{campaign._count?.responses ?? 0}</p>
-                  </div>
-                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-3">
-                    <p className="text-sm text-muted-foreground">Perguntas</p>
-                    <p className="text-lg font-semibold text-gray-900 dark:text-gray-100">{campaign.questions?.length ?? 0}</p>
-                  </div>
-                  <div className="bg-orange-50 dark:bg-orange-900/20 rounded-lg p-3">
-                    <p className="text-sm text-muted-foreground">Criada em</p>
-                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{new Date(campaign.createdAt).toLocaleDateString('pt-BR')}</p>
-                  </div>
-                </div>
-
-                <div className="flex flex-wrap gap-2">
-                  <Link href={`/campaigns/${campaign.id}/edit`}>
-                    <Button size="sm" variant="outline" className="flex items-center gap-2">
-                      <Edit className="h-4 w-4" />
-                      Editar
-                    </Button>
-                  </Link>
-                  <Button size="sm" variant="outline" onClick={() => toggleStatus(campaign)}>
-                    {campaign.status === 'ACTIVE' ? 'Desativar' : 'Ativar'}
-                  </Button>
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => openResetDialog(campaign)} 
-                    className="flex items-center gap-2 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
-                    disabled={campaign._count?.responses === 0}
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    Resetar Dados
-                  </Button>
-                  <Button size="sm" variant="destructive" onClick={() => deleteCampaign(campaign.id)} className="flex items-center gap-2">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card className="dark:bg-gray-800 dark:border-gray-700">
+          <CardHeader>
+            <CardTitle className="dark:text-gray-100">Lista de Campanhas</CardTitle>
+            <CardDescription className="dark:text-gray-400">
+              {campaigns.length} {campaigns.length === 1 ? 'campanha cadastrada' : 'campanhas cadastradas'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="relative overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="dark:border-gray-700">
+                    <TableHead className="dark:text-gray-300">Status</TableHead>
+                    <TableHead className="dark:text-gray-300">Campanha</TableHead>
+                    <TableHead className="dark:text-gray-300">Descrição</TableHead>
+                    <TableHead className="dark:text-gray-300">Respostas</TableHead>
+                    <TableHead className="dark:text-gray-300">Perguntas</TableHead>
+                    <TableHead className="dark:text-gray-300">Criada em</TableHead>
+                    <TableHead className="text-right dark:text-gray-300">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {campaigns.map((campaign) => (
+                    <TableRow key={campaign.id} className="dark:border-gray-700 dark:hover:bg-gray-750">
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={campaign.status === 'ACTIVE'}
+                            onCheckedChange={() => toggleStatus(campaign)}
+                            disabled={togglingId === campaign.id}
+                          />
+                          {campaign.status === 'ACTIVE' ? (
+                            <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-gray-900 dark:text-gray-100">
+                            {campaign.title}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          {campaign.description || '-'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-gray-900 dark:text-gray-100">
+                          {campaign._count?.responses ?? 0}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-gray-900 dark:text-gray-100">
+                          {campaign.questions?.length ?? 0}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-gray-500 dark:text-gray-400">
+                          {new Date(campaign.createdAt).toLocaleDateString('pt-BR')}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-2">
+                          <Link href={`/campaigns/${campaign.id}/edit`}>
+                            <Button size="sm" variant="outline">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openResetDialog(campaign)}
+                            className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                            disabled={campaign._count?.responses === 0}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => deleteCampaign(campaign.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* AlertDialog Reset */}
       <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

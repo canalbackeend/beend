@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { LogOut, Monitor, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Monitor, Loader2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
@@ -75,9 +76,9 @@ interface TerminalSession {
   userId: string;
   userName: string;
   companyLogo: string | null;
+  campaigns?: TerminalCampaign[];
 }
 
-// Map icon names to FontAwesome icons
 const iconMap: { [key: string]: IconDefinition } = {
   faHospital,
   faUserDoctor,
@@ -124,6 +125,8 @@ export default function SelectCampaignPage() {
   const [terminalSession, setTerminalSession] = useState<TerminalSession | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCampaign, setSelectedCampaign] = useState<string | null>(null);
+  const [logoutClicks, setLogoutClicks] = useState(0);
+  const [remainingTime, setRemainingTime] = useState(60);
 
   useEffect(() => {
     const storedSession = localStorage.getItem('terminalSession');
@@ -135,8 +138,29 @@ export default function SelectCampaignPage() {
 
     const session: TerminalSession = JSON.parse(storedSession);
     setTerminalSession(session);
-    fetchCampaigns(session.terminalId);
+    
+    if (session.campaigns && session.campaigns.length > 0) {
+      setCampaigns(session.campaigns);
+      setLoading(false);
+    } else {
+      fetchCampaigns(session.terminalId);
+    }
   }, [router]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRemainingTime((prev) => {
+        if (prev <= 1) {
+          // Resetar para o início da seleção (sem deslogar)
+          setSelectedCampaign(null);
+          setRemainingTime(60);
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const fetchCampaigns = async (terminalId: string) => {
     try {
@@ -148,11 +172,6 @@ export default function SelectCampaignPage() {
 
       const data = await response.json();
       setCampaigns(data);
-
-      // Se tiver apenas uma campanha, redireciona direto
-      if (data.length === 1) {
-        handleSelectCampaign(data[0]);
-      }
     } catch (error) {
       console.error('Error fetching campaigns:', error);
       toast.error('Erro ao carregar campanhas');
@@ -161,37 +180,56 @@ export default function SelectCampaignPage() {
     }
   };
 
+  const handleScreenTouch = () => {
+    setRemainingTime(60);
+  };
+
   const handleSelectCampaign = (terminalCampaign: TerminalCampaign) => {
     setSelectedCampaign(terminalCampaign.id);
     
-    // Armazena a campanha selecionada no localStorage
     localStorage.setItem('selectedCampaign', JSON.stringify({
       terminalCampaignId: terminalCampaign.id,
       campaignId: terminalCampaign.campaign.id,
       campaignTitle: terminalCampaign.customTitle || terminalCampaign.campaign.title,
       uniqueLink: terminalCampaign.campaign.uniqueLink,
+      color: terminalCampaign.color,
+      hasMultipleCampaigns: campaigns.length > 1,
     }));
 
-    // Redireciona para a pesquisa
     router.push('/terminal-v2/survey');
+  };
+
+  const handleVersionClick = () => {
+    setLogoutClicks((prev) => prev + 1);
+    if (logoutClicks + 1 >= 5) {
+      handleLogout();
+    }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('terminalSession');
+    localStorage.removeItem('terminalSessionV2');
     localStorage.removeItem('selectedCampaign');
-    router.replace('/terminal-v2/login');
+    toast.info('Sessão encerrada');
+    router.push('/terminal-v2/login');
   };
 
   const getIcon = (iconName: string): IconDefinition => {
     return iconMap[iconName] || faChartBar;
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-background" onClick={handleScreenTouch} onTouchStart={handleScreenTouch}>
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-300">Carregando campanhas...</p>
+          <Loader2 className="h-12 w-12 animate-spin text-orange-500 mx-auto mb-4" />
+          <p className="text-gray-400">Carregando campanhas...</p>
         </div>
       </div>
     );
@@ -199,18 +237,17 @@ export default function SelectCampaignPage() {
 
   if (campaigns.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 p-4">
-        <Card className="max-w-md w-full">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4" onClick={handleScreenTouch} onTouchStart={handleScreenTouch}>
+        <Card className="max-w-md w-full bg-gray-900 border-gray-700">
           <CardContent className="pt-6 text-center">
-            <Monitor className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+            <Monitor className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">
               Nenhuma campanha disponível
             </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              Este terminal não possui campanhas vinculadas. Entre em contato com o administrador.
+            <p className="text-gray-400 mb-6">
+              Este terminal não possui campanhas vinculadas.
             </p>
-            <Button onClick={handleLogout} variant="outline">
-              <LogOut className="h-4 w-4 mr-2" />
+            <Button onClick={handleLogout} variant="outline" className="border-gray-600 text-gray-300 hover:bg-gray-800">
               Sair
             </Button>
           </CardContent>
@@ -220,100 +257,123 @@ export default function SelectCampaignPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      {/* Header */}
-      <header className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            {terminalSession?.companyLogo ? (
-              <div className="relative w-12 h-12">
+    <div 
+      className="min-h-screen flex flex-col bg-background"
+      onClick={handleScreenTouch}
+      onTouchStart={handleScreenTouch}
+    >
+      <header className="bg-background">
+        <div className="h-4"></div>
+      </header>
+
+      <main className="flex-1 container mx-auto px-2 sm:px-4 py-4 sm:py-6 max-w-4xl overflow-y-auto">
+        <div className="bg-background">
+          <div className="p-2 sm:p-4 md:p-6 lg:p-8">
+            {/* Logo da empresa no topo */}
+            <div className="flex justify-center mb-6">
+              <div className="relative w-32 h-20 sm:w-40 sm:h-24">
                 <Image
-                  src={terminalSession.companyLogo}
+                  src={terminalSession?.companyLogo || '/logo-dark.png'}
                   alt="Logo"
                   fill
                   className="object-contain"
                 />
               </div>
-            ) : (
-              <Monitor className="h-8 w-8 text-blue-600" />
-            )}
-            <div>
-              <h1 className="font-semibold text-gray-900 dark:text-gray-100">
-                {terminalSession?.terminalName}
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Selecione uma pesquisa para iniciar
-              </p>
             </div>
-          </div>
-          <Button onClick={handleLogout} variant="outline" size="sm">
-            <LogOut className="h-4 w-4 mr-2" />
-            Sair
-          </Button>
-        </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="flex-1 p-6">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-              Qual pesquisa deseja aplicar?
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              Selecione uma das opções abaixo para iniciar
-            </p>
-          </div>
+            {/* Título */}
+            <div className="text-center mb-8">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-center px-2 mb-3">
+                Selecione uma sessão para avaliar
+              </h2>
+            </div>
 
-          {/* Campaign Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {campaigns.map((tc) => (
-              <button
-                key={tc.id}
-                onClick={() => handleSelectCampaign(tc)}
-                disabled={selectedCampaign === tc.id}
-                className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500/50 disabled:opacity-75 disabled:cursor-wait"
-                style={{ backgroundColor: tc.color }}
-              >
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                
-                <div className="relative p-8 text-white">
-                  {selectedCampaign === tc.id ? (
-                    <Loader2 className="h-16 w-16 mb-4 animate-spin mx-auto" />
-                  ) : (
-                    <FontAwesomeIcon
-                      icon={getIcon(tc.icon)}
-                      className="h-16 w-16 mb-4 mx-auto opacity-90 group-hover:scale-110 transition-transform"
-                    />
-                  )}
-                  
-                  <h3 className="text-xl md:text-2xl font-bold mb-2 text-center">
-                    {tc.customTitle || tc.campaign.title}
-                  </h3>
-                  
-                  {tc.description && (
-                    <p className="text-sm opacity-80 text-center line-clamp-2">
-                      {tc.description}
-                    </p>
-                  )}
-                  
-                  <div className="mt-4 text-center">
-                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/20 text-sm font-medium">
-                      {tc.campaign.questions.length} {tc.campaign.questions.length === 1 ? 'pergunta' : 'perguntas'}
-                    </span>
+            {/* Campaign List */}
+            <div className="space-y-3 max-w-2xl mx-auto">
+              {campaigns.map((tc) => (
+                <button
+                  key={tc.id}
+                  onClick={() => handleSelectCampaign(tc)}
+                  disabled={selectedCampaign === tc.id}
+                  className="w-full flex items-center gap-4 p-4 sm:p-5 rounded-xl border-2 transition-all duration-300 hover:scale-[1.02] focus:outline-none focus:ring-4 focus:ring-orange-500/50 disabled:opacity-75 disabled:cursor-wait"
+                  style={{ 
+                    backgroundColor: tc.color || '#f97316',
+                    borderColor: tc.color || '#f97316'
+                  }}
+                >
+                  <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-white/20 flex items-center justify-center">
+                    {selectedCampaign === tc.id ? (
+                      <Loader2 className="h-6 w-6 sm:h-7 sm:w-7 animate-spin" />
+                    ) : (
+                      <FontAwesomeIcon
+                        icon={getIcon(tc.icon)}
+                        className="h-6 w-6 sm:h-7 sm:w-7 text-white"
+                      />
+                    )}
                   </div>
-                </div>
-              </button>
-            ))}
+                  
+                  <div className="flex-1 text-left text-white min-w-0">
+                    <h3 className="text-lg sm:text-xl font-bold truncate">
+                      {tc.customTitle || tc.campaign.title}
+                    </h3>
+                    
+                    {tc.description && (
+                      <p className="text-sm opacity-80 line-clamp-1">
+                        {tc.description}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex-shrink-0">
+                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                      <span className="text-white text-sm">→</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-        <p>
-          Powered by <span className="font-semibold">Beend</span>
-        </p>
+      <footer className="fixed bottom-0 left-0 right-0 bg-gray-900 border-t border-gray-700 py-4 z-50">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col gap-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm text-gray-400">
+                <span>Selecione uma opção</span>
+                <span>{campaigns.length} {campaigns.length === 1 ? 'opção' : 'opções'}</span>
+              </div>
+              <Progress value={0} className="h-2 bg-gray-700" />
+            </div>
+
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <div className="relative w-24 sm:w-32 h-6">
+                  <Image
+                    src="/logo-dark.png"
+                    alt="Back&end Logo"
+                    fill
+                    className="object-contain"
+                    quality={100}
+                  />
+                </div>
+                <button
+                  onClick={handleVersionClick}
+                  className="text-xs text-gray-500 outline-none"
+                  style={{ outline: 'none' }}
+                >
+                  v2.0
+                </button>
+              </div>
+              
+              <div className="flex items-center gap-2 text-gray-500">
+                <Clock className="h-4 w-4" />
+                <span className="font-mono">{formatTime(remainingTime)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   );

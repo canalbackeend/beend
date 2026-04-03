@@ -15,6 +15,7 @@ export default function TerminalV2ThankYouPage() {
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
   const [countdown, setCountdown] = useState(3);
   const [mounted, setMounted] = useState(false);
+  const [hasMultipleCampaigns, setHasMultipleCampaigns] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -39,18 +40,39 @@ export default function TerminalV2ThankYouPage() {
           name: session.userName || 'Empresa',
           logo: session.companyLogo || null,
         });
+        setHasMultipleCampaigns(session.hasMultipleCampaigns || false);
       } catch (error) {
         console.error('Error parsing session:', error);
       }
     }
 
+    // Verificar também na sessão atual do terminal
+    const terminalSession = localStorage.getItem('terminalSession');
+    if (terminalSession) {
+      try {
+        const tSession = JSON.parse(terminalSession);
+        if (tSession.campaigns && tSession.campaigns.length > 1) {
+          setHasMultipleCampaigns(true);
+        }
+      } catch (error) {
+        console.error('Error parsing terminal session:', error);
+      }
+    }
+  }, [router]);
+
+  useEffect(() => {
     // Timer de redirecionamento (3 segundos)
     const timer = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          // Volta para o início da pesquisa, não para login
-          router.push('/terminal-v2/survey');
+          // Se tem mais de uma campanha, volta para seleção
+          // Se não, volta para a pesquisa (mantendo selectedCampaign)
+          if (hasMultipleCampaigns) {
+            router.push('/terminal-v2/select-campaign');
+          } else {
+            router.push('/terminal-v2/survey');
+          }
           return 0;
         }
         return prev - 1;
@@ -58,11 +80,16 @@ export default function TerminalV2ThankYouPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [router]);
+  }, [hasMultipleCampaigns, router]);
 
   const handleNewSurvey = () => {
-    // Volta para o início da pesquisa, não para login
-    router.push('/terminal-v2/survey');
+    // Se tem mais de uma campanha, volta para seleção
+    if (hasMultipleCampaigns) {
+      router.push('/terminal-v2/select-campaign');
+    } else {
+      // Volta para pesquisa (mantendo selectedCampaign para permitir nova avaliação)
+      router.push('/terminal-v2/survey');
+    }
   };
 
   return (

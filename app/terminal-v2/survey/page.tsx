@@ -57,6 +57,7 @@ interface TerminalSession {
   userName: string;
   companyLogo: string | null;
   timestamp: number;
+  hasMultipleCampaigns?: boolean;
 }
 
 export default function TerminalV2SurveyPage() {
@@ -87,15 +88,9 @@ export default function TerminalV2SurveyPage() {
     }
     
     const terminalSession = localStorage.getItem('terminalSession');
-    const savedSessionV2 = localStorage.getItem('terminalSessionV2');
     const selectedCampaign = localStorage.getItem('selectedCampaign');
     
-    if (savedSessionV2) {
-      const parsedSession: TerminalSession = JSON.parse(savedSessionV2);
-      setSession(parsedSession);
-      return;
-    }
-    
+    // Sempre usar selectedCampaign como fonte principal (dados frescos)
     if (terminalSession && selectedCampaign) {
       const terminal = JSON.parse(terminalSession);
       const campaign = JSON.parse(selectedCampaign);
@@ -121,6 +116,7 @@ export default function TerminalV2SurveyPage() {
               userName: terminal.userName,
               companyLogo: terminal.companyLogo,
               timestamp: Date.now(),
+              hasMultipleCampaigns: campaign.hasMultipleCampaigns || (terminal.campaigns && terminal.campaigns.length > 1),
             };
             setSession(newSession);
             localStorage.setItem('terminalSessionV2', JSON.stringify(newSession));
@@ -131,12 +127,31 @@ export default function TerminalV2SurveyPage() {
         })
         .catch(err => {
           console.error('Error fetching campaign:', err);
-          toast.error('Erro ao carregar campanha');
+          const terminalSession = localStorage.getItem('terminalSession');
+          if (terminalSession) {
+            return;
+          }
+          toast.error('Erro ao carregar campanha. Tentando novamente...');
           router.push('/terminal-v2/login');
         });
       return;
     }
     
+    // Se não tem sessão mas tem terminalSession, tenta carregar
+    if (terminalSession) {
+      try {
+        const terminal = JSON.parse(terminalSession);
+        if (terminal.campaigns && terminal.campaigns.length > 0) {
+          // Tem campanhas - ir para seleção
+          router.push('/terminal-v2/select-campaign');
+          return;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    
+    // último recurso - ir para login
     toast.error('Sessão expirada. Faça login novamente.');
     router.push('/terminal-v2/login');
   }, [router]);
@@ -158,7 +173,7 @@ export default function TerminalV2SurveyPage() {
       setRemainingTime((prev) => {
         if (prev <= 1) {
           handleResetSurvey();
-          return 120;
+          return 60;
         }
         return prev - 1;
       });
@@ -168,7 +183,7 @@ export default function TerminalV2SurveyPage() {
   }, []);
 
   const handleScreenTouch = () => {
-    setRemainingTime(120);
+    setRemainingTime(60);
   };
 
   const formatTime = (seconds: number) => {
@@ -185,7 +200,9 @@ export default function TerminalV2SurveyPage() {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('terminalSession');
     localStorage.removeItem('terminalSessionV2');
+    localStorage.removeItem('selectedCampaign');
     toast.info('Sessão encerrada');
     router.push('/terminal-v2/login');
   };

@@ -89,22 +89,22 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, campaignId, redirectUrl } = body;
+    const { name, campaignIds, campaignColors, redirectUrl } = body;
 
-    if (!name || !campaignId) {
-      return NextResponse.json({ error: 'Nome e campanha são obrigatórios' }, { status: 400 });
+    if (!name || !campaignIds || campaignIds.length === 0) {
+      return NextResponse.json({ error: 'Nome e ao menos uma campanha são obrigatórios' }, { status: 400 });
     }
 
-    // Verificar se a campanha existe e pertence ao usuário
-    const campaign = await prisma.campaign.findFirst({
+    // Verificar se as campanhas existem e pertencem ao usuário
+    const campaigns = await prisma.campaign.findMany({
       where: {
-        id: campaignId,
+        id: { in: campaignIds },
         userId: user.id,
       },
     });
 
-    if (!campaign) {
-      return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
+    if (campaigns.length !== campaignIds.length) {
+      return NextResponse.json({ error: 'Uma ou mais campanhas não encontradas' }, { status: 404 });
     }
 
     // Verificar limite de terminais
@@ -122,12 +122,12 @@ export async function POST(request: NextRequest) {
     // Gerar uniqueLink para o terminal
     const uniqueLink = randomBytes(10).toString('hex');
 
-    // Criar o terminal (sem campaignId direto, agora usa TerminalCampaign)
+    // Criar o terminal
     const terminal = await prisma.terminal.create({
       data: {
         name,
         email: '',  // Será atualizado abaixo
-        password: await bcrypt.hash('term123', 10), // Senha padrão
+        password: await bcrypt.hash('term123', 10),
         uniqueLink,
         redirectUrl: redirectUrl || null,
         userId: user.id,
@@ -144,16 +144,19 @@ export async function POST(request: NextRequest) {
       data: { email },
     });
 
-    // Criar a relação TerminalCampaign
-    await prisma.terminalCampaign.create({
-      data: {
-        terminalId: terminal.id,
-        campaignId: campaignId,
-        order: 0,
-        icon: 'faChartBar',
-        color: '#3b82f6',
-      },
-    });
+    // Criar as relações TerminalCampaign para cada campanha
+    for (let i = 0; i < campaignIds.length; i++) {
+      const campaignId = campaignIds[i];
+      await prisma.terminalCampaign.create({
+        data: {
+          terminalId: terminal.id,
+          campaignId: campaignId,
+          order: i,
+          icon: 'faChartBar',
+          color: campaignColors?.[campaignId] || '#3b82f6',
+        },
+      });
+    }
 
     // Buscar o terminal atualizado com as campanhas
     const updatedTerminal = await prisma.terminal.findUnique({

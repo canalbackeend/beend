@@ -95,7 +95,16 @@ export async function POST(request: NextRequest) {
     // Filtrar apenas campanhas ativas
     const activeCampaigns = terminal.campaigns.filter(
       tc => tc.campaign.status === 'ACTIVE'
-    );
+    ).map(tc => ({
+      id: tc.id,
+      campaignId: tc.campaignId,
+      icon: tc.icon,
+      color: tc.color,
+      customTitle: tc.customTitle,
+      description: tc.description,
+      campaign: tc.campaign,
+    }));
+
 
     // Retornar dados do terminal e campanhas
     return NextResponse.json({
@@ -111,8 +120,6 @@ export async function POST(request: NextRequest) {
         logo: terminal.user.logoUrl,
       },
       campaigns: activeCampaigns,
-      // Manter compatibilidade com versão antiga (primeira campanha)
-      campaign: activeCampaigns.length > 0 ? activeCampaigns[0].campaign : null,
     });
   } catch (error) {
     console.error('Error authenticating terminal:', error);

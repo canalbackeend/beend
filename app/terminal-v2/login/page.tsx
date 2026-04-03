@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
 import Image from 'next/image';
 
@@ -65,35 +64,10 @@ export default function TerminalV2LoginPage() {
           userEmail: data.terminal.email,
           userName: data.user?.name || data.user?.companyName,
           companyLogo: data.user?.logo,
+          campaigns: data.campaigns,
           timestamp: Date.now(),
         })
       );
-
-      // Também salvar no formato antigo para compatibilidade
-      if (data.campaign) {
-        localStorage.setItem(
-          'terminalSessionV2',
-          JSON.stringify({
-            terminalId: data.terminal.id,
-            terminalName: data.terminal.name,
-            campaignId: data.campaign.id,
-            campaignTitle: data.campaign.title,
-            campaignDescription: data.campaign.description,
-            questions: data.campaign.questions,
-            lgpdText: data.campaign.lgpdText,
-            collectName: data.campaign.collectName,
-            collectPhone: data.campaign.collectPhone,
-            collectEmail: data.campaign.collectEmail,
-            userId: data.user?.id,
-            userEmail: data.terminal.email,
-            userName: data.user?.name || data.user?.companyName,
-            companyLogo: data.user?.logo,
-            timestamp: Date.now(),
-          })
-        );
-      }
-
-      toast.success('Login realizado com sucesso!');
 
       // Se tiver mais de uma campanha, vai para seleção
       // Se tiver apenas uma, vai direto para a pesquisa
@@ -107,6 +81,8 @@ export default function TerminalV2LoginPage() {
           campaignId: tc.campaign.id,
           campaignTitle: tc.customTitle || tc.campaign.title,
           uniqueLink: tc.campaign.uniqueLink,
+          color: tc.color,
+          hasMultipleCampaigns: false,
         }));
         router.push('/terminal-v2/survey');
       }
@@ -123,70 +99,68 @@ export default function TerminalV2LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 to-gray-800 p-4">
-      <Card className="w-full max-w-md shadow-2xl">
-        <CardContent className="pt-8 pb-8">
-          <div className="flex flex-col items-center mb-10">
-            {/* Logo Backeend */}
-            <div className="relative w-72 h-20 mb-4">
-              <Image
-                src="/logo-dark.png"
-                alt="Back&end Logo"
-                fill
-                className="object-contain"
-                priority
-                quality={100}
-              />
-            </div>
-            
-            <p className="text-muted-foreground text-center mt-4 text-sm">
-              Sistema de Pesquisa de Satisfação
-            </p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-900 p-4">
+      <div className="w-full max-w-md">
+        <div className="flex flex-col items-center mb-10">
+          {/* Logo Backeend */}
+          <div className="relative w-72 h-20 mb-4">
+            <Image
+              src="/logo-dark.png"
+              alt="Back&end Logo"
+              fill
+              className="object-contain"
+              priority
+              quality={100}
+            />
+          </div>
+          
+          <p className="text-gray-400 text-center mt-4 text-sm">
+            Sistema de Pesquisa de Satisfação
+          </p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-base text-gray-300">
+              E-mail do Terminal
+            </Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="terminal@empresa.com"
+              required
+              className="h-12 text-lg bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+              autoComplete="email"
+            />
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-base">
-                E-mail do Terminal
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="terminal@empresa.com"
-                required
-                className="h-12 text-lg"
-                autoComplete="email"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-base text-gray-300">
+              Senha
+            </Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••"
+              required
+              className="h-12 text-lg bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+              autoComplete="current-password"
+            />
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-base">
-                Senha
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••"
-                required
-                className="h-12 text-lg"
-                autoComplete="current-password"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full h-14 text-lg font-semibold"
-              disabled={loading}
-            >
-              {loading ? 'Entrando...' : 'Entrar'}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          <Button
+            type="submit"
+            className="w-full h-14 text-lg font-semibold bg-orange-500 hover:bg-orange-600 text-white"
+            disabled={loading}
+          >
+            {loading ? 'Entrando...' : 'Entrar'}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }

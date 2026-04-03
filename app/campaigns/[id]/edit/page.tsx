@@ -289,25 +289,32 @@ function SortableQuestionItem({
                 {question.type === 'NPS' && (
                   <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/30 dark:to-purple-950/30 p-4 rounded-lg">
                     <Label className="text-sm text-muted-foreground mb-3 block">Preview:</Label>
-                    <div className="flex flex-wrap justify-center gap-1">
-                      {Array.from({ length: 11 }, (_, i) => i).map((num) => (
-                        <div
-                          key={num}
-                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium border-2 ${
-                            num <= 6
-                              ? 'bg-red-100 border-red-300 text-red-700'
-                              : num <= 8
-                              ? 'bg-yellow-100 border-yellow-300 text-yellow-700'
-                              : 'bg-green-100 border-green-300 text-green-700'
-                          }`}
+                    <div className="flex justify-center flex-wrap gap-1">
+                      {[
+                        { num: 0, color: 'bg-red-500' },
+                        { num: 1, color: 'bg-red-500' },
+                        { num: 2, color: 'bg-red-500' },
+                        { num: 3, color: 'bg-red-500' },
+                        { num: 4, color: 'bg-yellow-400' },
+                        { num: 5, color: 'bg-yellow-400' },
+                        { num: 6, color: 'bg-yellow-400' },
+                        { num: 7, color: 'bg-green-500' },
+                        { num: 8, color: 'bg-green-500' },
+                        { num: 9, color: 'bg-green-500' },
+                        { num: 10, color: 'bg-green-500' },
+                      ].map((item) => (
+                        <button
+                          key={item.num}
+                          disabled
+                          className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full ${item.color} text-white text-xs sm:text-sm font-bold flex items-center justify-center`}
                         >
-                          {num}
-                        </div>
+                          {item.num}
+                        </button>
                       ))}
                     </div>
-                    <div className="flex justify-between text-xs text-muted-foreground mt-2 px-2">
-                      <span>Não recomendaria</span>
-                      <span>Recomendaria totalmente</span>
+                    <div className="flex justify-between mt-2 text-xs text-gray-500 dark:text-gray-400 px-1">
+                      <span>0 = Não recommendaria</span>
+                      <span>10 = Com certeza recommendaria</span>
                     </div>
                   </div>
                 )}
@@ -717,7 +724,7 @@ export default function EditCampaignPage() {
       
       // Preencher texto padrão para NPS
       if (value === 'NPS' && !updated[index].text) {
-        updated[index].text = 'Em uma escala de 0 a 10, o quanto você recomendaria nosso serviço a um amigo ou colega?';
+        updated[index].text = 'Em uma escala de 0 a 10, o quanto você recomendaria nossos produtos/serviços a um amigo ou familiar?';
       }
     }
 
