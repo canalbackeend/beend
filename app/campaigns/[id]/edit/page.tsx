@@ -865,6 +865,7 @@ export default function EditCampaignPage() {
       // Há mudanças destrutivas - mostrar aviso
       setDestructiveChanges(destructiveChanges);
       setShowResetWarning(true);
+      toast.warning(`Alterações destrutivas detectadas: ${destructiveChanges.length} mudança(s) requer reset dos dados`);
     } else {
       // Mudanças seguras - salvar normalmente sem deletar dados
       setSaving(true);
@@ -917,6 +918,7 @@ export default function EditCampaignPage() {
           setDestructiveChanges(newChanges);
           setShowResetWarning(true);
           setSaving(false);
+          toast.warning(errorData.error);
           return;
         }
         throw new Error(errorData?.error || 'Erro ao atualizar campanha');
