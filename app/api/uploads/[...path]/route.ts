@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { existsSync, createReadStream } from 'fs';
-import { join, dirname } from 'path';
+import { join, extname } from 'path';
+
+const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -10,8 +12,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'No path provided' }, { status: 400 });
   }
 
-  // Sanitize path to prevent directory traversal
-  const sanitizedPath = filePath.replace(/\.\./g, '');
+  // Decode URL encoding first
+  let decodedPath = decodeURIComponent(filePath);
+
+  // Additional check for any encoding attempts
+  try {
+    decodedPath = decodedPath.normalize('NFC');
+  } catch (e) {
+    return NextResponse.json({ error: 'Invalid path encoding' }, { status: 400 });
+  }
+
+  // Check for directory traversal attempts
+  if (decodedPath.includes('..') || decodedPath.startsWith('/') || decodedPath.includes(':')) {
+    return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+  }
+
+  // Sanitize path
+  const sanitizedPath = decodedPath.replace(/[^a-zA-Z0-9._\-/]/g, '');
+
+  // Validate file extension
+  const ext = extname(sanitizedPath).toLowerCase();
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return NextResponse.json({ error: 'File type not allowed' }, { status: 403 });
+  }
   
   // Try multiple base directories
   const possiblePaths = [
@@ -22,7 +45,6 @@ export async function GET(request: NextRequest) {
   
   let fullPath = '';
   for (const p of possiblePaths) {
-    console.log('Checking path:', p);
     if (existsSync(p)) {
       fullPath = p;
       break;
@@ -30,16 +52,15 @@ export async function GET(request: NextRequest) {
   }
 
   if (!fullPath) {
-    console.log('File not found in any of these paths:', possiblePaths);
     return NextResponse.json({ error: 'File not found' }, { status: 404 });
   }
 
-  console.log('Serving file from:', fullPath);
+  const contentType = ext === '.png' ? 'image/png' : 
+                      ext === '.gif' ? 'image/gif' : 
+                      ext === '.webp' ? 'image/webp' : 
+                      ext === '.svg' ? 'image/svg+xml' : 'image/jpeg';
+
   const stream = createReadStream(fullPath);
-  const ext = fullPath.split('.').pop() || 'jpg';
-  const contentType = ext === 'png' ? 'image/png' : 
-                      ext === 'gif' ? 'image/gif' : 
-                      ext === 'webp' ? 'image/webp' : 'image/jpeg';
 
   return new NextResponse(stream as any, {
     headers: {

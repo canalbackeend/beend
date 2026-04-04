@@ -75,13 +75,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Criar resposta
-    console.log('Creating response with answers:', JSON.stringify(answers.map((a: any) => ({
-      questionId: a.questionId,
-      rating: a.rating,
-      selectedOptions: a.selectedOptions,
-      comment: a.comment
-    }))));
-    
     const response = await prisma.response.create({
       data: {
         campaignId,
@@ -111,7 +104,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// PATCH - Atualizar dados de contato de uma resposta existente (público)
+// PATCH - Atualizar dados de contato de uma resposta existente (público, mas com limite de tempo)
 export async function PATCH(request: NextRequest) {
   try {
     const body = await request.json();
@@ -128,6 +121,13 @@ export async function PATCH(request: NextRequest) {
 
     if (!existingResponse) {
       return NextResponse.json({ error: 'Resposta não encontrada' }, { status: 404 });
+    }
+
+    // Verificar se a resposta foi criada nos últimos 60 minutos
+    // Isso previne que qualquer um edite respostas antigas
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    if (existingResponse.createdAt < oneHourAgo) {
+      return NextResponse.json({ error: 'Tempo para editar expirou (60 min)' }, { status: 403 });
     }
 
     // Atualizar apenas os dados de contato

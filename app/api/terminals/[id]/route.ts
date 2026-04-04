@@ -150,6 +150,15 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       return NextResponse.json({ error: 'Terminal não encontrado' }, { status: 404 });
     }
 
+    // Deletar dados relacionados primeiro (cascade manual)
+    await prisma.surveyAccess.deleteMany({
+      where: { terminalId: params.id },
+    });
+    
+    await prisma.response.deleteMany({
+      where: { terminalId: params.id },
+    });
+
     // Deletar o terminal
     await prisma.terminal.delete({
       where: { id: params.id },

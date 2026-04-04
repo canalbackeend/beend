@@ -29,8 +29,6 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
     const viewAsUserId = searchParams.get('viewAsUser');
     const terminalId = searchParams.get('terminalId');
 
-    console.log('Analytics API called with:', { terminalId, daysParam, startDate, endDate });
-
     // Buscar campanha com perguntas e opções
     const campaign = await prisma.campaign.findUnique({
       where: { id: params.campaignId },
@@ -42,11 +40,6 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
           },
         },
       },
-    });
-
-    console.log('Campaign loaded:', { 
-      questionCount: campaign?.questions?.length, 
-      questionTypes: campaign?.questions?.map((q: any) => q.type) 
     });
 
     if (!campaign) {
@@ -121,8 +114,6 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
     });
 
     const totalResponses = responses.length;
-    console.log('Total responses found:', totalResponses);
-    console.log('Sample answers:', responses[0]?.answers?.slice(0, 2));
 
     // Calcular métricas por pergunta
     const questionMetrics = campaign.questions.map((question: any) => {
@@ -147,7 +138,6 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
             distribution[ratingNum] = (distribution[ratingNum] || 0) + 1;
           }
         });
-        console.log(`Question ${question.id} (${question.type}): ${ratings.length} ratings, distribution:`, JSON.stringify(distribution));
 
         // Comentários negativos
         const threshold = question.type === 'SMILE' ? 2 : question.type === 'SIMPLE_SMILE' ? 2 : question.type === 'NPS' ? 6 : (question.scaleMin || 1) + 1;

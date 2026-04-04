@@ -14,6 +14,14 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }
 
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+    });
+
+    if (!user) {
+      return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
+    }
+
     const campaign = await prisma.campaign.findUnique({
       where: { id: params.id },
       include: {
@@ -30,6 +38,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 
     if (!campaign) {
       return NextResponse.json({ error: 'Campanha não encontrada' }, { status: 404 });
+    }
+
+    // Verificar propriedade - usuário deve ser dono da campanha
+    if (campaign.userId !== user.id) {
+      return NextResponse.json({ error: 'Sem permissão para acessar esta campanha' }, { status: 403 });
     }
 
     return NextResponse.json(campaign);
