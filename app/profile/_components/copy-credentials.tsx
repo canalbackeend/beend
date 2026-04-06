@@ -52,7 +52,7 @@ export function CopyCredentials({ userName, userEmail }: CopyCredentialsProps) {
       })
       .join('\n\n');
 
-    return `Olá ${userName}, segue os acessos para teste da plataforma:\n\nSegue os acessos:\n\nEndereço da plataforma: https://sistema.beend.tech\nLogin: ${userEmail}\nSenha(Provisória): 123456\n\n${terminals.length > 0 ? `Painel individual dos terminais: https://sistema.beend.tech/terminal-panel/login\n\nAcesso dos terminais:\n\n${terminalsList}\n\n` : ''}Link para download do APK de instalação do tablet:\nhttps://sistema.beend.tech/beend.apk`;
+    return `Olá ${userName}, segue os acessos para teste da plataforma:\n\nSegue os acessos:\n\nEndereço da plataforma: https://sistema.beend.tech\nLogin: ${userEmail}\nSenha(Provisória): 123456\n\n${terminals.length > 0 ? `Painel individual dos terminais: https://sistema.beend.tech/terminal-panel/login\n\nAcesso dos terminais:\n\n${terminalsList}\n\n` : ''}Link para download do APK de instalação do tablet:\nhttps://sistema.beend.tech/BeendSurvey.apk`;
   };
 
   const handleCopy = async () => {
@@ -160,7 +160,7 @@ export function CopyCredentials({ userName, userEmail }: CopyCredentialsProps) {
                   <div className="bg-background rounded-md p-4 space-y-2 border mt-4">
                     <p className="text-sm font-medium">Link para download do APK de instalação do tablet:</p>
                     <p className="text-sm text-blue-600 dark:text-blue-400 break-all">
-                      https://sistema.beend.tech/beend.apk
+                      https://sistema.beend.tech/BeendSurvey.apk
                     </p>
                   </div>
                 </div>
