@@ -173,7 +173,16 @@ export default function TerminalV2SurveyPage() {
       setRemainingTime((prev) => {
         if (prev <= 1) {
           localStorage.removeItem('selectedCampaign');
-          router.push('/terminal-v2/select-campaign');
+          
+          const hasMultipleCampaigns = session?.hasMultipleCampaigns || 
+            (session?.terminalId && localStorage.getItem('terminalSession') && 
+              JSON.parse(localStorage.getItem('terminalSession') || '{}').campaigns?.length > 1);
+          
+          if (hasMultipleCampaigns) {
+            router.push('/terminal-v2/select-campaign');
+          } else {
+            router.push('/terminal-v2/survey');
+          }
           return 60;
         }
         return prev - 1;
@@ -181,7 +190,7 @@ export default function TerminalV2SurveyPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [router]);
+  }, [router, session]);
 
   const handleScreenTouch = () => {
     setRemainingTime(60);
