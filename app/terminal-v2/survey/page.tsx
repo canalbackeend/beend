@@ -172,17 +172,7 @@ export default function TerminalV2SurveyPage() {
     const interval = setInterval(() => {
       setRemainingTime((prev) => {
         if (prev <= 1) {
-          localStorage.removeItem('selectedCampaign');
-          
-          const hasMultipleCampaigns = session?.hasMultipleCampaigns || 
-            (session?.terminalId && localStorage.getItem('terminalSession') && 
-              JSON.parse(localStorage.getItem('terminalSession') || '{}').campaigns?.length > 1);
-          
-          if (hasMultipleCampaigns) {
-            router.push('/terminal-v2/select-campaign');
-          } else {
-            router.push('/terminal-v2/survey');
-          }
+          handleTimeout();
           return 60;
         }
         return prev - 1;
@@ -190,7 +180,20 @@ export default function TerminalV2SurveyPage() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [router, session]);
+  }, []);
+
+  const handleTimeout = () => {
+    const terminalSession = localStorage.getItem('terminalSession');
+    const hasMultipleCampaigns = terminalSession && 
+      JSON.parse(terminalSession).campaigns?.length > 1;
+    
+    if (hasMultipleCampaigns) {
+      localStorage.removeItem('selectedCampaign');
+      router.push('/terminal-v2/select-campaign');
+    } else {
+      handleResetSurvey();
+    }
+  };
 
   const handleScreenTouch = () => {
     setRemainingTime(60);
@@ -416,13 +419,30 @@ export default function TerminalV2SurveyPage() {
       if (shouldCollectData) {
         setShowRespondentDataScreen(true);
       } else {
-        router.push('/terminal-v2/thankyou');
+        handleSurveyComplete();
       }
     } catch (error) {
       console.error('Save survey error:', error);
       toast.error('Erro ao enviar respostas. Tente novamente.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSurveyComplete = () => {
+    router.push('/terminal-v2/thankyou');
+  };
+
+  const handleAfterThankYou = () => {
+    const terminalSession = localStorage.getItem('terminalSession');
+    const hasMultipleCampaigns = terminalSession && 
+      JSON.parse(terminalSession).campaigns?.length > 1;
+    
+    if (hasMultipleCampaigns) {
+      localStorage.removeItem('selectedCampaign');
+      router.push('/terminal-v2/select-campaign');
+    } else {
+      handleResetSurvey();
     }
   };
 
@@ -448,7 +468,7 @@ export default function TerminalV2SurveyPage() {
       }
 
       toast.success('Dados salvos com sucesso!');
-      router.push('/terminal-v2/thankyou');
+      handleSurveyComplete();
     } catch (error) {
       console.error('Save contact info error:', error);
       toast.error('Erro ao salvar dados de contato. Tente novamente.');
@@ -458,7 +478,7 @@ export default function TerminalV2SurveyPage() {
   };
 
   const skipContactInfo = () => {
-    router.push('/terminal-v2/thankyou');
+    handleSurveyComplete();
   };
 
   const formatPhoneNumber = (value: string): string => {

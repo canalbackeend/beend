@@ -66,13 +66,7 @@ export default function TerminalV2ThankYouPage() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          // Se tem mais de uma campanha, volta para seleção
-          // Se não, volta para a pesquisa (mantendo selectedCampaign)
-          if (hasMultipleCampaigns) {
-            router.push('/terminal-v2/select-campaign');
-          } else {
-            router.push('/terminal-v2/survey');
-          }
+          handleRedirect();
           return 0;
         }
         return prev - 1;
@@ -82,12 +76,20 @@ export default function TerminalV2ThankYouPage() {
     return () => clearInterval(timer);
   }, [hasMultipleCampaigns, router]);
 
-  const handleNewSurvey = () => {
-    // Se tem mais de uma campanha, volta para seleção
+  const handleRedirect = () => {
     if (hasMultipleCampaigns) {
+      localStorage.removeItem('selectedCampaign');
       router.push('/terminal-v2/select-campaign');
     } else {
-      // Volta para pesquisa (mantendo selectedCampaign para permitir nova avaliação)
+      router.push('/terminal-v2/survey');
+    }
+  };
+
+  const handleNewSurvey = () => {
+    if (hasMultipleCampaigns) {
+      localStorage.removeItem('selectedCampaign');
+      router.push('/terminal-v2/select-campaign');
+    } else {
       router.push('/terminal-v2/survey');
     }
   };
