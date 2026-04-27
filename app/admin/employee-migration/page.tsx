@@ -158,13 +158,16 @@ function EmployeeMigrationContent() {
         body: JSON.stringify({ answerId, newEmployeeId }),
       });
       
+      const data = await response.json();
+      
       if (response.ok) {
         toast.success('Correção aplicada!');
         if (campaignId) loadMigrationData(campaignId);
       } else {
-        toast.error('Erro ao corrigir');
+        toast.error(data.error || 'Erro ao corrigir');
       }
     } catch (error) {
+      console.error('Error:', error);
       toast.error('Erro ao corrigir');
     }
   };
