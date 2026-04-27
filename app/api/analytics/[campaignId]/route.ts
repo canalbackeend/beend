@@ -395,23 +395,23 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
         const employeeName = option.text;
         const employeeImageUrl = option.imageUrl;
         
-        // Buscar todas as respostas de AVALIAÇÃO onde este colaborador foi selecionado
-        // (excluindo a própria pergunta EMPLOYEE_RATING que não tem rating)
-        const answersForEmployee = responses.flatMap((r: any) => 
-          r.answers.filter((a: any) => {
-            const question = campaign.questions.find((q: any) => q.id === a.questionId);
-            // Verifica tanto selectedEmployeeId quanto selectedOptions (array)
-            const hasEmployeeInOptions = a.selectedOptions && a.selectedOptions.includes(employeeId);
-            return (a.selectedEmployeeId === employeeId || hasEmployeeInOptions) && 
-                   question && 
-                   (question.type === 'SMILE' || question.type === 'SIMPLE_SMILE' || question.type === 'NPS' || question.type === 'SCALE');
-          })
+        // Buscar todas as respostas (responses) onde este colaborador foi selecionado
+        // Um Response pode ter múltiplas answers - a EMPLOYEE_RATING indica QUAL employee foi avaliado
+        // As outras answers (SMILE, SIMPLE_SMILE, etc) nesse mesmo Response são a avaliação
+        const responsesWithEmployee = responses.filter((r: any) => 
+          r.answers.some((a: any) => 
+            a.questionId === employeeQuestion.id && 
+            a.selectedOptions && 
+            a.selectedOptions.includes(employeeId)
+          )
         );
         
-        if (answersForEmployee.length > 0) {
-          // Para cada pergunta de avaliação, calcular métricas
+        if (responsesWithEmployee.length > 0) {
+          // Para cada pergunta de avaliação, buscar answers das responses que têm este employee
           const employeeRatings = evalQuestions.map((ratingQ: any) => {
-            const ratingAnswers = answersForEmployee.filter((a: any) => a.questionId === ratingQ.id);
+            const ratingAnswers = responsesWithEmployee.flatMap((r: any) => 
+              r.answers.filter((a: any) => a.questionId === ratingQ.id)
+            );
             const ratings = ratingAnswers.map((a: any) => a.rating).filter((r: any) => r !== null);
             
             if (ratings.length === 0) return null;
@@ -450,21 +450,11 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
           }).filter(Boolean);
           
           if (employeeRatings.length > 0) {
-            // Contar quantas pesquisas (responses) diferentes avaliaram este colaborador
-            const uniqueResponses = new Set(
-              answersForEmployee.map((a: any) => {
-                const response = responses.find((r: any) => 
-                  r.answers.some((ans: any) => ans.id === a.id)
-                );
-                return response?.id;
-              }).filter(Boolean)
-            );
-            
             employeeMetrics.push({
               employeeId,
               employeeName,
               employeeImageUrl,
-              totalResponses: uniqueResponses.size,
+              totalResponses: responsesWithEmployee.length,
               ratings: employeeRatings,
             });
           }
