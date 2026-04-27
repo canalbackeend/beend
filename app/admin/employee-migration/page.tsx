@@ -151,6 +151,13 @@ function EmployeeMigrationContent() {
   };
 
   const handleFix = async (answerId: string, newEmployeeId: string) => {
+    console.log('handleFix called:', { answerId, newEmployeeId });
+    
+    if (!answerId || !newEmployeeId || newEmployeeId === '') {
+      toast.error('Selecione um employee válido');
+      return;
+    }
+    
     try {
       const response = await fetch('/api/admin/fix-employee-id', {
         method: 'PUT',
@@ -159,6 +166,7 @@ function EmployeeMigrationContent() {
       });
       
       const data = await response.json();
+      console.log('Response:', response.status, data);
       
       if (response.ok) {
         toast.success('Correção aplicada!');

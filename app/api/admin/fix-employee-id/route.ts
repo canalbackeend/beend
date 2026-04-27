@@ -7,10 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest) {
   try {
-    console.log('Fix-employee-id called');
-    
     const session = await getServerSession(authOptions);
-    console.log('Session:', session?.user?.email);
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
@@ -26,14 +23,11 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const { answerId, newEmployeeId } = body;
-    
-    console.log('Request body:', { answerId, newEmployeeId });
 
     if (!answerId || !newEmployeeId) {
       return NextResponse.json({ error: 'answerId e newEmployeeId são obrigatórios' }, { status: 400 });
     }
 
-    // Buscar a answer para verificar permissão
     const answer = await prisma.answer.findUnique({
       where: { id: answerId },
       include: {
@@ -44,8 +38,6 @@ export async function PUT(request: NextRequest) {
         },
       },
     });
-    
-    console.log('Answer found:', answer?.id);
 
     if (!answer) {
       return NextResponse.json({ error: 'Resposta não encontrada' }, { status: 404 });
@@ -55,23 +47,21 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Sem permissão' }, { status: 403 });
     }
 
-    // Atualizar o ID do employee
     const updated = await prisma.answer.update({
       where: { id: answerId },
       data: {
         selectedOptions: [newEmployeeId],
       },
     });
-    
-    console.log('Updated successfully:', updated.id);
 
     return NextResponse.json({ 
       success: true, 
       message: 'ID do employee atualizado',
+      updatedId: updated.id,
     });
 
   } catch (error) {
     console.error('Error updating answer:', error);
-    return NextResponse.json({ error: 'Erro ao atualizar: ' + String(error) }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
   }
 }
