@@ -7,7 +7,10 @@ export const dynamic = 'force-dynamic';
 
 export async function PUT(request: NextRequest) {
   try {
+    console.log('Fix-employee-id called');
+    
     const session = await getServerSession(authOptions);
+    console.log('Session:', session?.user?.email);
 
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
@@ -23,6 +26,8 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
     const { answerId, newEmployeeId } = body;
+    
+    console.log('Request body:', { answerId, newEmployeeId });
 
     if (!answerId || !newEmployeeId) {
       return NextResponse.json({ error: 'answerId e newEmployeeId são obrigatórios' }, { status: 400 });
@@ -39,6 +44,8 @@ export async function PUT(request: NextRequest) {
         },
       },
     });
+    
+    console.log('Answer found:', answer?.id);
 
     if (!answer) {
       return NextResponse.json({ error: 'Resposta não encontrada' }, { status: 404 });
@@ -55,6 +62,8 @@ export async function PUT(request: NextRequest) {
         selectedOptions: [newEmployeeId],
       },
     });
+    
+    console.log('Updated successfully:', updated.id);
 
     return NextResponse.json({ 
       success: true, 
@@ -63,6 +72,6 @@ export async function PUT(request: NextRequest) {
 
   } catch (error) {
     console.error('Error updating answer:', error);
-    return NextResponse.json({ error: 'Erro ao atualizar' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro ao atualizar: ' + String(error) }, { status: 500 });
   }
 }

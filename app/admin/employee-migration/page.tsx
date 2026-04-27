@@ -182,24 +182,44 @@ function EmployeeMigrationContent() {
       return acc;
     }, {});
     
-    const promises = data.orphanedResponses.flatMap((r: OrphanedResponse) =>
-      r.answers
-        .filter((a: OrphanedAnswer) => mapping[a.employeeId])
-        .map((a: OrphanedAnswer) =>
-          fetch('/api/admin/fix-employee-id', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              answerId: a.answerId, 
-              newEmployeeId: mapping[a.employeeId] 
-            }),
-          })
-        )
-    );
+    console.log('Mapping:', mapping);
+    console.log('Orphaned responses:', data.orphanedResponses);
     
-    await Promise.all(promises);
-    toast.success('Correções automáticas aplicadas!');
-    if (campaignId) loadMigrationData(campaignId);
+    if (Object.keys(mapping).length === 0) {
+      toast.error('Nenhuma sugestão automática encontrada. Use a correção manual.');
+      return;
+    }
+    
+    try {
+      const results = await Promise.all(
+        data.orphanedResponses.flatMap((r: OrphanedResponse) =>
+          r.answers
+            .filter((a: OrphanedAnswer) => mapping[a.employeeId])
+            .map((a: OrphanedAnswer) =>
+              fetch('/api/admin/fix-employee-id', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  answerId: a.answerId, 
+                  newEmployeeId: mapping[a.employeeId] 
+                }),
+              })
+            )
+        )
+      );
+      
+      const failures = results.filter(r => !r.ok);
+      if (failures.length > 0) {
+        toast.error(`${failures.length} correções falharam`);
+      } else {
+        toast.success('Correções automáticas aplicadas!');
+      }
+      
+      if (campaignId) loadMigrationData(campaignId);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Erro ao aplicar correções');
+    }
   };
 
   if (loading) {
