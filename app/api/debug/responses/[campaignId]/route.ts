@@ -31,7 +31,7 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: 100,
     });
 
     return NextResponse.json({
