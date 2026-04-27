@@ -41,6 +41,7 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
         createdAt: r.createdAt,
         terminalId: r.terminalId,
         answers: r.answers.map((a) => ({
+          id: a.id,
           questionId: a.questionId,
           questionType: a.question.type,
           rating: a.rating,

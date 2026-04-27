@@ -103,7 +103,7 @@ function EmployeeMigrationContent() {
               responseId: r.id,
               createdAt: r.createdAt,
               answers: [{
-                answerId: empAnswer.id,
+                answerId: String(empAnswer.id),
                 employeeId: empAnswer.selectedOptions[0],
                 relatedComment: comment,
               }],
