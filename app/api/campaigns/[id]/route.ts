@@ -202,23 +202,52 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
               },
             });
 
-            // Atualizar opções (SINGLE_CHOICE, MULTIPLE_CHOICE, EMPLOYEE_RATING)
+            // Atualizar opções existentes em vez de deletar e recriar
+            // Isso mantém os IDs e preserva as respostas antigas
             if (q.options && q.options.length > 0) {
-              // Deletar opções antigas
-              await prisma.questionOption.deleteMany({
+              // Buscar opções atuais da pergunta
+              const currentOptions = await prisma.questionOption.findMany({
                 where: { questionId: q.id },
               });
               
-              // Criar novas opções
-              await prisma.questionOption.createMany({
-                data: q.options.map((opt: any, idx: number) => ({
-                  questionId: q.id,
-                  text: opt.text,
-                  color: opt.color || '#3b82f6',
-                  imageUrl: opt.imageUrl,
-                  order: opt.order ?? idx + 1,
-                })),
-              });
+              // Para cada opção enviada, atualizar se existir ou criar se não existir
+              for (let optIdx = 0; optIdx < q.options.length; optIdx++) {
+                const opt = q.options[optIdx];
+                
+                if (opt.id) {
+                  // Atualizar opção existente
+                  await prisma.questionOption.update({
+                    where: { id: opt.id },
+                    data: {
+                      text: opt.text,
+                      color: opt.color || '#3b82f6',
+                      imageUrl: opt.imageUrl,
+                      order: opt.order ?? optIdx + 1,
+                    },
+                  });
+                } else {
+                  // Criar nova opção (sem ID, é nova)
+                  await prisma.questionOption.create({
+                    data: {
+                      questionId: q.id,
+                      text: opt.text,
+                      color: opt.color || '#3b82f6',
+                      imageUrl: opt.imageUrl,
+                      order: opt.order ?? optIdx + 1,
+                    },
+                  });
+                }
+              }
+              
+              // Opcional: deletar opções que foram removidas
+              // (comentado para manter compatibilidade - se quiser remover, descomente)
+              // const newOptionIds = q.options.filter((o: any) => o.id).map((o: any) => o.id);
+              // await prisma.questionOption.deleteMany({
+              //   where: { 
+              //     questionId: q.id,
+              //     id: { notIn: newOptionIds }
+              //   }
+              // });
             }
           } else {
             // Criar nova pergunta (pergunta nova sem ID)
