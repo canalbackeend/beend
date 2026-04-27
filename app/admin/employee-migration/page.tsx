@@ -181,7 +181,12 @@ function EmployeeMigrationContent() {
   };
 
   const handleFixAll = async () => {
-    if (!data?.orphanedResponses) return;
+    if (!data?.orphanedResponses) {
+      console.log('No orphaned responses');
+      toast.error('Nenhuma resposta para corrigir');
+      return;
+    }
+    
     if (!matches || matches.length === 0) {
       toast.error('Nenhuma sugestão encontrada');
       return;
@@ -191,14 +196,13 @@ function EmployeeMigrationContent() {
     
     // Build mapping from matches that have suggestedNewId
     matches.forEach((m) => {
-      if (m.suggestedNewId) {
+      if (m.suggestedNewId && m.oldId) {
         mapping[m.oldId] = m.suggestedNewId;
       }
     });
     
-    console.log('Matches:', matches);
-    console.log('Mapping built:', mapping);
-    console.log('Orphaned:', data.orphanedResponses);
+    console.log('Matches (sample):', matches.slice(0, 2));
+    console.log('Mapping:', mapping);
     
     if (Object.keys(mapping).length === 0) {
       toast.error('Nenhuma sugestão automática válida. Use a correção manual.');
@@ -206,26 +210,32 @@ function EmployeeMigrationContent() {
     }
     
     try {
-      const requests = data.orphanedResponses.flatMap((r: OrphanedResponse) =>
-        r.answers
-          .filter((a: OrphanedAnswer) => mapping[a.employeeId])
+      const requests = data.orphanedResponses.flatMap((r: OrphanedResponse) => {
+        console.log('Response:', r);
+        return r.answers
+          .filter((a: OrphanedAnswer) => {
+            const hasMapping = !!mapping[a.employeeId];
+            console.log('Checking answer:', a.employeeId, 'has mapping:', hasMapping);
+            return hasMapping;
+          })
           .map((a: OrphanedAnswer) => {
-            console.log('Sending request for:', { answerId: a.answerId, newEmployeeId: mapping[a.employeeId] });
+            const newId = mapping[a.employeeId];
+            console.log('Mapping answerId:', a.answerId, 'to newId:', newId);
             return fetch('/api/admin/fix-employee-id', {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ 
-                answerId: a.answerId, 
-                newEmployeeId: mapping[a.employeeId] 
+                answerId: String(a.answerId), 
+                newEmployeeId: String(newId)
               }),
             });
-          })
-      );
+          });
+      });
       
       console.log('Total requests:', requests.length);
       
       if (requests.length === 0) {
-        toast.error('Nenhuma resposta para corrigir');
+        toast.error('Nenhuma resposta para corrigir com as sugestões atuais');
         return;
       }
       
