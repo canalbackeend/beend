@@ -152,7 +152,7 @@ function EmployeeMigrationContent() {
 
   const handleFix = async (answerId: string, newEmployeeId: string) => {
     try {
-      const response = await fetch('/api/campaigns/fix-employee-id', {
+      const response = await fetch('/api/admin/fix-employee-id', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answerId, newEmployeeId }),
@@ -186,7 +186,7 @@ function EmployeeMigrationContent() {
       r.answers
         .filter((a: OrphanedAnswer) => mapping[a.employeeId])
         .map((a: OrphanedAnswer) =>
-          fetch('/api/campaigns/fix-employee-id', {
+          fetch('/api/admin/fix-employee-id', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
