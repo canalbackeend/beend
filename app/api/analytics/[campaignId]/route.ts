@@ -400,7 +400,9 @@ export async function GET(request: NextRequest, { params }: { params: { campaign
         const answersForEmployee = responses.flatMap((r: any) => 
           r.answers.filter((a: any) => {
             const question = campaign.questions.find((q: any) => q.id === a.questionId);
-            return a.selectedEmployeeId === employeeId && 
+            // Verifica tanto selectedEmployeeId quanto selectedOptions (array)
+            const hasEmployeeInOptions = a.selectedOptions && a.selectedOptions.includes(employeeId);
+            return (a.selectedEmployeeId === employeeId || hasEmployeeInOptions) && 
                    question && 
                    (question.type === 'SMILE' || question.type === 'SIMPLE_SMILE' || question.type === 'NPS' || question.type === 'SCALE');
           })
