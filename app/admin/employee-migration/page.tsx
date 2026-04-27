@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ interface OrphanedResponse {
   answers: OrphanedAnswer[];
 }
 
-export default function EmployeeMigrationPage() {
+function EmployeeMigrationContent() {
   const searchParams = useSearchParams();
   const campaignId = searchParams.get('campaignId');
   
@@ -257,5 +257,13 @@ export default function EmployeeMigrationPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function EmployeeMigrationPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Carregando...</div>}>
+      <EmployeeMigrationContent />
+    </Suspense>
   );
 }
