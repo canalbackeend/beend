@@ -182,45 +182,60 @@ function EmployeeMigrationContent() {
 
   const handleFixAll = async () => {
     if (!data?.orphanedResponses) return;
+    if (!matches || matches.length === 0) {
+      toast.error('Nenhuma sugestão encontrada');
+      return;
+    }
     
-    const mapping = matches.reduce((acc: Record<string, string>, m) => {
+    const mapping: Record<string, string> = {};
+    
+    // Build mapping from matches that have suggestedNewId
+    matches.forEach((m) => {
       if (m.suggestedNewId) {
-        acc[m.oldId] = m.suggestedNewId;
+        mapping[m.oldId] = m.suggestedNewId;
       }
-      return acc;
-    }, {});
+    });
     
-    console.log('Mapping:', mapping);
-    console.log('Orphaned responses:', data.orphanedResponses);
+    console.log('Matches:', matches);
+    console.log('Mapping built:', mapping);
+    console.log('Orphaned:', data.orphanedResponses);
     
     if (Object.keys(mapping).length === 0) {
-      toast.error('Nenhuma sugestão automática encontrada. Use a correção manual.');
+      toast.error('Nenhuma sugestão automática válida. Use a correção manual.');
       return;
     }
     
     try {
-      const results = await Promise.all(
-        data.orphanedResponses.flatMap((r: OrphanedResponse) =>
-          r.answers
-            .filter((a: OrphanedAnswer) => mapping[a.employeeId])
-            .map((a: OrphanedAnswer) =>
-              fetch('/api/admin/fix-employee-id', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                  answerId: a.answerId, 
-                  newEmployeeId: mapping[a.employeeId] 
-                }),
-              })
-            )
-        )
+      const requests = data.orphanedResponses.flatMap((r: OrphanedResponse) =>
+        r.answers
+          .filter((a: OrphanedAnswer) => mapping[a.employeeId])
+          .map((a: OrphanedAnswer) => {
+            console.log('Sending request for:', { answerId: a.answerId, newEmployeeId: mapping[a.employeeId] });
+            return fetch('/api/admin/fix-employee-id', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                answerId: a.answerId, 
+                newEmployeeId: mapping[a.employeeId] 
+              }),
+            });
+          })
       );
+      
+      console.log('Total requests:', requests.length);
+      
+      if (requests.length === 0) {
+        toast.error('Nenhuma resposta para corrigir');
+        return;
+      }
+      
+      const results = await Promise.all(requests);
       
       const failures = results.filter(r => !r.ok);
       if (failures.length > 0) {
         toast.error(`${failures.length} correções falharam`);
       } else {
-        toast.success('Correções automáticas aplicadas!');
+        toast.success('Correções aplicadas!');
       }
       
       if (campaignId) loadMigrationData(campaignId);
