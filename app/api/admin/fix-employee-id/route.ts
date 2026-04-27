@@ -24,8 +24,13 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { answerId, newEmployeeId } = body;
 
-    if (!answerId || !newEmployeeId) {
-      return NextResponse.json({ error: 'answerId e newEmployeeId são obrigatórios' }, { status: 400 });
+    console.log('Received:', { answerId, newEmployeeId, typeAnswerId: typeof answerId, typeNewId: typeof newEmployeeId });
+
+    if (!answerId || !newEmployeeId || answerId === '' || newEmployeeId === '') {
+      return NextResponse.json({ 
+        error: 'answerId e newEmployeeId são obrigatórios', 
+        details: { answerId: !!answerId, newEmployeeId: !!newEmployeeId } 
+      }, { status: 400 });
     }
 
     const answer = await prisma.answer.findUnique({
