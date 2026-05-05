@@ -119,11 +119,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gerar uniqueLink e email únicos
+    // Gerar uniqueLink e email amigável sequencial por conta
     const uniqueLink = randomBytes(10).toString('hex');
-    const email = `term-${randomBytes(4).toString('hex')}@beend.tech`;
+    const count = await prisma.terminal.count({ where: { userId: user.id } });
+    const terminalNum = (count + 1).toString().padStart(2, '0');
+    let email = `terminal${terminalNum}@beend.tech`;
+    
+    // Verificar se já existe e incrementar se necessário
+    let exists = true;
+    while (exists) {
+      exists = !!(await prisma.terminal.findUnique({ where: { email } }));
+      if (exists) {
+        const next = parseInt(terminalNum) + 1;
+        email = `terminal${next.toString().padStart(2, '0')}@beend.tech`;
+      }
+    }
 
-    // Criar o terminal com email já definido (100% sem colisão)
+    // Criar o terminal com email já definido
     const terminal = await prisma.terminal.create({
       data: {
         name,
