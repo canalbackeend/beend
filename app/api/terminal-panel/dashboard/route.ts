@@ -23,9 +23,8 @@ export async function GET() {
               include: {
                 questions: {
                   include: {
-                    options: true,
+                    options: { orderBy: { order: 'asc' } },
                   },
-                  orderBy: { order: 'asc' },
                 },
               },
             },
@@ -40,9 +39,11 @@ export async function GET() {
       return NextResponse.json({ error: 'Terminal ou campanha não encontrados' }, { status: 404 });
     }
 
-    // Pegar a primeira campanha ativa (ou podemos agregar todas no futuro)
-    const activeCampaign = terminal.campaigns[0].campaign;
     const campaignIds = terminal.campaigns.map(tc => tc.campaignId);
+    const activeCampaigns = terminal.campaigns.map(tc => tc.campaign);
+
+    // Se tem múltiplas campanhas, agregar os dados de todas
+    const hasMultipleCampaigns = campaignIds.length > 1;
 
     // Buscar respostas do terminal para todas as campanhas vinculadas
     const responses = await prisma.response.findMany({
@@ -66,7 +67,6 @@ export async function GET() {
       },
     });
 
-    // Calcular estatísticas
     const totalResponses = responses.length;
 
     // Respostas nos últimos 7 dias
@@ -83,55 +83,43 @@ export async function GET() {
       (r) => new Date(r.createdAt) >= thirtyDaysAgo
     ).length;
 
-    // Respostas com dados de contato
-    const responsesWithContact = responses.filter(
-      (r) => r.respondentName || r.respondentEmail || r.respondentPhone
-    ).length;
-
-    // Calcular média geral (excluindo NPS)
-    let totalRatings = 0;
-    let ratingCount = 0;
-
-    responses.forEach((response) => {
-      response.answers.forEach((answer) => {
-        if (
-          answer.rating !== null &&
-          ['SMILE', 'SIMPLE_SMILE', 'SCALE'].includes(answer.question.type)
-        ) {
-          totalRatings += answer.rating;
-          ratingCount++;
-        }
-      });
-    });
-
-    const overallAverage = ratingCount > 0 ? totalRatings / ratingCount : 0;
-
     // Calcular NPS
+    let promoters = 0;
+    let passives = 0;
+    let detractors = 0;
     let npsScores: number[] = [];
+
     responses.forEach((response) => {
       response.answers.forEach((answer) => {
         if (answer.question.type === 'NPS' && answer.rating !== null) {
           npsScores.push(answer.rating);
+          if (answer.rating >= 9) promoters++;
+          else if (answer.rating >= 7 && answer.rating <= 8) passives++;
+          else detractors++;
         }
       });
     });
 
-    let npsScore = 0;
+    let npsScore: number | null = null;
     if (npsScores.length > 0) {
-      const promoters = npsScores.filter((score) => score >= 9).length;
-      const detractors = npsScores.filter((score) => score <= 6).length;
       npsScore = ((promoters - detractors) / npsScores.length) * 100;
     }
 
-    // Calcular métricas por questão (usando questões da primeira campanha)
-    const questionMetrics = activeCampaign.questions.map((question) => {
+    // Calcular métricas agregadas por pergunta (todas as campanhas)
+    const questionMetrics: any[] = [];
+
+    // Pegar todas as perguntas únicas de todas as campanhas
+    const allQuestions = activeCampaigns.flatMap(c => c.questions);
+
+    allQuestions.forEach((question) => {
       const answers = responses.flatMap((r) =>
         r.answers.filter((a) => a.questionId === question.id)
       );
+      const totalAnswers = answers.length;
 
       let avgRating = 0;
       let distribution: { [key: string]: number } = {};
-      let optionDetails: { [key: string]: { color: string } } = {};
+      let optionDetails: { [key: string]: { color: string; imageUrl?: string } } = {};
       let negativeComments: any[] = [];
 
       if (question.type === 'SMILE' || question.type === 'SIMPLE_SMILE' || question.type === 'NPS' || question.type === 'SCALE') {
@@ -140,50 +128,46 @@ export async function GET() {
           avgRating = ratings.reduce((sum, r) => sum + r, 0) / ratings.length;
         }
 
-        // Distribuição de ratings
         ratings.forEach((rating) => {
           distribution[rating.toString()] = (distribution[rating.toString()] || 0) + 1;
         });
 
-        // Comentários negativos (ratings baixos)
-        if (question.type === 'SMILE' || question.type === 'SIMPLE_SMILE') {
-          const threshold = question.type === 'SMILE' ? 3 : 2;
-          negativeComments = answers
-            .filter((a) => a.rating !== null && a.rating <= threshold && a.comment)
-            .map((a) => ({
-              rating: a.rating,
-              comment: a.comment,
-              date: responses.find((r) => r.answers.some((ans) => ans.id === a.id))?.createdAt,
-            }));
-        }
-      } else if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE') {
-        // Distribuição de opções (conta as seleções)
-        answers.forEach((answer) => {
-          answer.selectedOptions.forEach((optionId) => {
-            const option = question.options.find((o) => o.id === optionId);
-            const optionText = option?.text || optionId;
+        const threshold = question.type === 'SMILE' ? 2 : question.type === 'SIMPLE_SMILE' ? 2 : question.type === 'NPS' ? 6 : (question.scaleMin || 1) + 1;
+        negativeComments = answers
+          .filter((a) => a.rating !== null && a.rating <= threshold && a.comment)
+          .map((a) => ({
+            rating: a.rating,
+            comment: a.comment,
+            date: responses.find((r) => r.answers.some((ans) => ans.id === a.id))?.createdAt,
+          }))
+          .slice(0, 5);
+      } else if (question.type === 'SINGLE_CHOICE' || question.type === 'MULTIPLE_CHOICE' || question.type === 'EMPLOYEE_RATING') {
+        answers.forEach((a) => {
+          a.selectedOptions.forEach((optId) => {
+            const option = question.options.find((o) => o.id === optId);
+            const optionText = option?.text || optId;
             distribution[optionText] = (distribution[optionText] || 0) + 1;
             if (option && !optionDetails[optionText]) {
-              optionDetails[optionText] = { color: option.color || '#3b82f6' };
+              optionDetails[optionText] = { color: option.color || '#f97316', imageUrl: option.imageUrl || undefined };
             }
           });
         });
       } else if (question.type === 'TEXT_INPUT') {
-        // Comentários de texto aberto
         negativeComments = answers
           .filter((a) => a.comment)
           .map((a) => ({
             comment: a.comment,
             date: responses.find((r) => r.answers.some((ans) => ans.id === a.id))?.createdAt,
-          }));
+          }))
+          .slice(0, 10);
       }
 
-      return {
+      questionMetrics.push({
         questionId: question.id,
         questionText: question.text,
         questionType: question.type,
-        avgRating: avgRating,
-        totalAnswers: answers.length,
+        avgRating,
+        totalAnswers,
         distribution,
         optionColors: optionDetails,
         negativeComments,
@@ -191,11 +175,17 @@ export async function GET() {
         scaleMax: question.scaleMax,
         scaleMinLabel: question.scaleMinLabel,
         scaleMaxLabel: question.scaleMaxLabel,
-      };
+      });
     });
 
-    // Respostas ao longo do tempo (por dia)
-    const responsesOverTimeObj: { [key: string]: number } = {};
+    // Calcular média geral (excluindo NPS)
+    const ratingQuestions = questionMetrics.filter((m) => m.questionType === 'SMILE' || m.questionType === 'SIMPLE_SMILE' || m.questionType === 'SCALE');
+    const overallAvg = ratingQuestions.length > 0
+      ? ratingQuestions.reduce((sum, m) => sum + m.avgRating, 0) / ratingQuestions.length
+      : 0;
+
+    // Respostas ao longo do tempo
+    const responsesOverTime: { [key: string]: number } = {};
     const last30Days: Date[] = [];
     for (let i = 29; i >= 0; i--) {
       const date = new Date();
@@ -205,74 +195,149 @@ export async function GET() {
 
     last30Days.forEach((date) => {
       const dateStr = date.toISOString().split('T')[0];
-      responsesOverTimeObj[dateStr] = 0;
+      responsesOverTime[dateStr] = 0;
     });
 
     responses.forEach((response) => {
       const dateStr = new Date(response.createdAt).toISOString().split('T')[0];
-      if (responsesOverTimeObj[dateStr] !== undefined) {
-        responsesOverTimeObj[dateStr]++;
+      if (responsesOverTime[dateStr] !== undefined) {
+        responsesOverTime[dateStr]++;
       }
     });
 
-    // Calcular promoters, passives, detractors
-    let promoters = 0;
-    let passives = 0;
-    let detractors = 0;
+    // Histórico de comentários
+    const allComments = responses.flatMap((response) =>
+      response.answers
+        .filter((answer) => answer.comment && answer.comment.trim() !== '')
+        .map((answer) => {
+          const question = allQuestions.find((q) => q.id === answer.questionId);
+          return {
+            responseId: response.id,
+            questionId: answer.questionId,
+            questionText: question?.text || 'Pergunta não encontrada',
+            questionType: question?.type || 'UNKNOWN',
+            answerText: answer.rating !== null ? `Nota: ${answer.rating}` : '',
+            rating: answer.rating,
+            selectedOptions: answer.selectedOptions,
+            comment: answer.comment,
+            date: response.createdAt,
+          };
+        })
+    ).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-    if (npsScores.length > 0) {
-      promoters = npsScores.filter((score) => score >= 9).length;
-      passives = npsScores.filter((score) => score >= 7 && score <= 8).length;
-      detractors = npsScores.filter((score) => score <= 6).length;
-    }
-
-    // ========== ANÁLISE DE SENTIMENTO (TODOS os comentários) ==========
-    // Buscar palavras-chave customizadas do usuário (dono da campanha)
+    // Análise de sentimento
+    const userId = terminal.userId;
     const userKeywords = await prisma.sentimentKeyword.findMany({
-      where: { userId: activeCampaign.userId },
+      where: { userId },
     });
 
-    const customPositiveWords = userKeywords
-      .filter((k: any) => k.type === 'POSITIVE')
-      .map((k: any) => k.word);
-    
-    const customNegativeWords = userKeywords
-      .filter((k: any) => k.type === 'NEGATIVE')
-      .map((k: any) => k.word);
+    const customPositiveWords = userKeywords.filter((k: any) => k.type === 'POSITIVE').map((k: any) => k.word);
+    const customNegativeWords = userKeywords.filter((k: any) => k.type === 'NEGATIVE').map((k: any) => k.word);
 
-    // Coletar TODOS os comentários (TEXT_INPUT + comentários opcionais de todas as perguntas)
-    const allTextComments = responses.flatMap((response: any) => 
+    const allTextComments = responses.flatMap((response: any) =>
       response.answers
         .filter((answer: any) => answer.comment && answer.comment.trim() !== '')
         .map((answer: any) => answer.comment)
     );
 
-    const sentimentAnalysis = analyzeSentimentBatch(
-      allTextComments,
-      customPositiveWords,
-      customNegativeWords
+    const sentimentAnalysis = analyzeSentimentBatch(allTextComments, customPositiveWords, customNegativeWords);
+
+    // Métricas por colaborador
+    const employeeMetrics: any[] = [];
+    const employeeQuestion = allQuestions.find((q) => q.type === 'EMPLOYEE_RATING');
+    const evalQuestions = allQuestions.filter((q) =>
+      q.type === 'SMILE' || q.type === 'SIMPLE_SMILE' || q.type === 'NPS' || q.type === 'SCALE'
     );
 
+    if (employeeQuestion && evalQuestions.length > 0) {
+      employeeQuestion.options.forEach((option) => {
+        const employeeId = option.id;
+        const employeeName = option.text;
+        const employeeImageUrl = option.imageUrl;
+
+        const responsesWithEmployee = responses.filter((r) =>
+          r.answers.some((a) => a.questionId === employeeQuestion.id && a.selectedOptions?.includes(employeeId))
+        );
+
+        if (responsesWithEmployee.length > 0) {
+          const employeeRatings = evalQuestions.map((ratingQ) => {
+            const ratingAnswers = responsesWithEmployee.flatMap((r) => r.answers.filter((a) => a.questionId === ratingQ.id));
+            const ratings = ratingAnswers.map((a) => a.rating).filter((r) => r !== null);
+
+            if (ratings.length === 0) return null;
+
+            const distribution: any = {};
+            ratings.forEach((rating: number) => {
+              distribution[rating] = (distribution[rating] || 0) + 1;
+            });
+
+            const distributionArray = Object.entries(distribution).map(([label, count]) => ({
+              label,
+              count: count as number,
+              percentage: ((count as number) / ratings.length) * 100,
+              color: '#f97316',
+            }));
+
+            return {
+              questionId: ratingQ.id,
+              questionText: ratingQ.text,
+              questionType: ratingQ.type,
+              totalRatings: ratings.length,
+              avgRating: ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length,
+              distribution: distributionArray,
+            };
+          }).filter(Boolean);
+
+          if (employeeRatings.length > 0) {
+            employeeMetrics.push({
+              employeeId,
+              employeeName,
+              employeeImageUrl,
+              totalResponses: responsesWithEmployee.length,
+              ratings: employeeRatings,
+            });
+          }
+        }
+      });
+    }
+
+    // Retornar campanhas disponíveis
+    const campaigns = terminal.campaigns.map(tc => ({
+      id: tc.id,
+      campaignId: tc.campaignId,
+      title: tc.campaign.title,
+      description: tc.description,
+      customTitle: tc.customTitle,
+      icon: tc.icon,
+      color: tc.color,
+      campaign: tc.campaign,
+    }));
+
     return NextResponse.json({
-      campaign: {
-        id: activeCampaign.id,
-        title: activeCampaign.title,
+      terminal: {
+        id: terminal.id,
+        name: terminal.name,
+        email: terminal.email,
       },
+      campaigns,
+      hasMultipleCampaigns,
+      campaign: hasMultipleCampaigns ? null : { id: activeCampaigns[0].id, title: activeCampaigns[0].title },
       totalResponses,
-      overallAvg: overallAverage,
-      npsScore: npsScores.length > 0 ? npsScore : null,
-      questionMetrics,
-      responsesOverTime: responsesOverTimeObj,
+      overallAvg,
+      npsScore,
       promoters,
       passives,
       detractors,
+      questionMetrics,
+      responsesOverTime,
+      responsesLast7Days,
+      responsesLast30Days,
+      allComments,
       sentimentAnalysis,
+      employeeMetrics,
     });
   } catch (error) {
     console.error('Error fetching terminal dashboard:', error);
-    return NextResponse.json(
-      { error: 'Erro ao buscar dados do dashboard' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Erro ao buscar dados do dashboard' }, { status: 500 });
   }
 }
