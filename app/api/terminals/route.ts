@@ -134,9 +134,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Gerar email baseado no ID
-    const terminalNumber = terminal.id.slice(-8).replace(/[^0-9]/g, '').padStart(2, '0').slice(0, 2);
-    const email = `term${terminalNumber}@beend.app`;
+    // Contagem atual + 1 para este usuário (gera número sequencial único por conta)
+    const count = await prisma.terminal.count({ where: { userId: user.id } });
+    const terminalNumber = (count + 1).toString().padStart(3, '0');
+    const year = Date.now().toString().slice(-4);
+    const email = `term${terminalNumber}${year}@beend.tech`;
 
     // Atualizar o terminal com o email gerado
     await prisma.terminal.update({
