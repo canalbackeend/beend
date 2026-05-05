@@ -119,28 +119,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gerar uniqueLink para o terminal
+    // Gerar uniqueLink e email únicos
     const uniqueLink = randomBytes(10).toString('hex');
+    const email = `term-${randomBytes(4).toString('hex')}@beend.tech`;
 
-    // Criar o terminal
+    // Criar o terminal com email já definido (100% sem colisão)
     const terminal = await prisma.terminal.create({
       data: {
         name,
-        email: '',  // Será atualizado abaixo
+        email,
         password: await bcrypt.hash('term123', 10),
         uniqueLink,
         redirectUrl: redirectUrl || null,
         userId: user.id,
       },
-    });
-
-    // Gerar email usando o ID único do terminal (100% sem colisão)
-    const email = `term-${terminal.id}@beend.tech`;
-
-    // Atualizar o terminal com o email gerado
-    await prisma.terminal.update({
-      where: { id: terminal.id },
-      data: { email },
     });
 
     // Criar as relações TerminalCampaign para cada campanha
