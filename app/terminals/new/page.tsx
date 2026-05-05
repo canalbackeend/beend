@@ -266,7 +266,7 @@ export default function NewTerminalPage() {
                     🔑 Credenciais Automáticas
                   </h4>
                   <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                    <p>• Email: Será gerado automaticamente (ex: ter{id}01@beend.tech)</p>
+                    <p>• Email: Será gerado automaticamente (ex: terabcd01@beend.tech)</p>
                     <p>• Senha padrão: <strong>term123</strong></p>
                     <p className="text-xs mt-2 text-blue-700 dark:text-blue-300">
                       As credenciais serão exibidas após a criação do terminal
