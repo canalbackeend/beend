@@ -161,12 +161,6 @@ export default function TerminalPanelDashboard() {
     fetchAnalytics();
   }, []);
 
-  useEffect(() => {
-    if (selectedCampaignId && analytics && analytics.campaigns && analytics.campaigns.length > 0) {
-      fetchCampaignAnalytics(selectedCampaignId);
-    }
-  }, [selectedCampaignId, analytics]);
-
   const fetchAnalytics = async () => {
     try {
       const response = await fetch('/api/terminal-panel/dashboard');
@@ -174,49 +168,12 @@ export default function TerminalPanelDashboard() {
       setAnalytics(data);
 
       if (data?.campaigns?.length > 0) {
-        if (data.hasMultipleCampaigns) {
-          setSelectedCampaignId(data.campaigns[0].id);
-        } else {
-          setSelectedCampaignId(data.campaigns[0].id);
-        }
+        setSelectedCampaignId(data.campaigns[0].id);
       }
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchCampaignAnalytics = async (terminalCampaignId: string) => {
-    if (!analytics) return;
-
-    const tc = analytics.campaigns.find((c) => c.id === terminalCampaignId);
-    if (!tc) return;
-
-    const campaignId = tc.campaignId;
-
-    try {
-      const response = await fetch(`/api/analytics/${campaignId}?days=365`);
-      const data = await response.json();
-
-      if (data) {
-        setAnalytics((prev) => prev ? {
-          ...prev,
-          campaign: { id: tc.campaign.id, title: tc.campaign.title },
-          totalResponses: data.totalResponses,
-          overallAvg: data.overallAvg,
-          npsScore: data.npsScore,
-          promoters: data.promoters,
-          passives: data.passives,
-          detractors: data.detractors,
-          questionMetrics: data.questionMetrics,
-          allComments: data.allComments,
-          sentimentAnalysis: data.sentimentAnalysis,
-          employeeMetrics: data.employeeMetrics,
-        } : null);
-      }
-    } catch (error) {
-      console.error('Error fetching campaign analytics:', error);
     }
   };
 
