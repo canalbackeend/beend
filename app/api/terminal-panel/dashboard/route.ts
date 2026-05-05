@@ -262,7 +262,7 @@ export async function GET() {
         if (responsesWithEmployee.length > 0) {
           const employeeRatings = evalQuestions.map((ratingQ) => {
             const ratingAnswers = responsesWithEmployee.flatMap((r) => r.answers.filter((a) => a.questionId === ratingQ.id));
-            const ratings = ratingAnswers.map((a) => a.rating).filter((r) => r !== null);
+            const ratings = ratingAnswers.map((a) => a.rating).filter((r): r is number => r !== null);
 
             if (ratings.length === 0) return null;
 
