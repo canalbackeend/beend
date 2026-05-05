@@ -162,10 +162,10 @@ export default function TerminalPanelDashboard() {
   }, []);
 
   useEffect(() => {
-    if (selectedCampaignId && analytics?.campaigns?.length > 0) {
+    if (selectedCampaignId && analytics && analytics.campaigns && analytics.campaigns.length > 0) {
       fetchCampaignAnalytics(selectedCampaignId);
     }
-  }, [selectedCampaignId]);
+  }, [selectedCampaignId, analytics]);
 
   const fetchAnalytics = async () => {
     try {
