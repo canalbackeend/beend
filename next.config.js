@@ -20,6 +20,10 @@ const nextConfig = {
         source: '/uploads/:path*',
         destination: '/uploads/:path*',
       },
+      {
+        source: '/terminal-painel/:path*',
+        destination: '/terminal-panel/:path*',
+      },
     ];
   },
 };
