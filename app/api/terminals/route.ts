@@ -134,11 +134,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Contagem atual + 1 para este usuário (gera número sequencial único por conta)
-    const count = await prisma.terminal.count({ where: { userId: user.id } });
-    const terminalNumber = (count + 1).toString().padStart(3, '0');
-    const year = Date.now().toString().slice(-4);
-    const email = `term${terminalNumber}${year}@beend.tech`;
+    // Gerar email único à prova de colisão
+    const uniqueId = randomBytes(4).toString('hex');
+    const email = `term${uniqueId}@beend.tech`;
 
     // Atualizar o terminal com o email gerado
     await prisma.terminal.update({
