@@ -119,22 +119,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Gerar uniqueLink e email único por empresa
-    // Formato: ter{id_empresa}{sequencial}@beend.tech
-    // Ex: empresa ID 1 -> ter101, ter102 | empresa ID 2 -> ter201, ter202, ter203
+    // Gerar uniqueLink e email único
+    // Formato: ter{2_digitos}@{sequencial_empresa}@beend.tech
+    // Ex: ter42@beend.tech, ter43@beend.tech (sequencial/global)
     const uniqueLink = randomBytes(10).toString('hex');
-    const count = await prisma.terminal.count({ where: { userId: user.id } });
-    const terminalNum = (count + 1).toString().padStart(2, '0');
-    let email = `ter${user.id}${terminalNum}@beend.tech`;
+    const shortId = randomBytes(1).toString('hex').padStart(2, '0');
+    let email = `ter${shortId}@beend.tech`;
     
-    // Verificar se já existe e incrementar se necessário
+    // Verificar se já existe e tentar outro se necessário
     let exists = true;
-    let seq = count + 1;
     while (exists) {
-      exists = !!(await prisma.terminal.findUnique({ where: { email } }));
-      if (exists) {
-        seq++;
-        email = `ter${user.id}${seq.toString().padStart(2, '0')}@beend.tech`;
+      const existing = await prisma.terminal.findUnique({ where: { email } });
+      if (existing) {
+        email = `ter${randomBytes(1).toString('hex').padStart(2, '0')}@beend.tech`;
+      } else {
+        break;
       }
     }
 
