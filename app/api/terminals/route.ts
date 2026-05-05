@@ -134,9 +134,8 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Gerar email único à prova de colisão
-    const uniqueId = randomBytes(4).toString('hex');
-    const email = `term${uniqueId}@beend.tech`;
+    // Gerar email usando o ID único do terminal (100% sem colisão)
+    const email = `term-${terminal.id}@beend.tech`;
 
     // Atualizar o terminal com o email gerado
     await prisma.terminal.update({
